@@ -1,0 +1,197 @@
+---
+title: Module API
+description: Module compilation and import/export handling
+---
+
+Porffor's module API provides advanced control over module compilation, including import handling and exported function management.
+
+## Module Compilation
+
+When compiling with `module = true`, Porffor enables ES6 module features:
+
+```javascript
+import compile from 'porffor';
+
+const { exports } = compile(`
+  export const PI = 3.14159;
+  export function circle(r) {
+    return PI * r * r;
+  }
+`, true); // module = true
+
+console.log(exports.PI);        // 3.14159
+console.log(exports.circle(5)); // 78.53975
+```
+
+## Import Handling
+
+Porffor provides the `createImport` function to define custom imports that compiled code can use.
+
+### createImport
+
+```javascript
+import { createImport } from 'porffor';
+```
+
+<ParamField path="name" type="string" required>
+  Name of the import function
+</ParamField>
+
+<ParamField path="params" type="number" required>
+  Number of parameters the import function accepts
+</ParamField>
+
+<ParamField path="returns" type="number" required>
+  Number of return values (0 for void, 1 for single return)
+</ParamField>
+
+<ParamField path="func" type="function" required>
+  JavaScript function to execute when import is called
+</ParamField>
+
+### Built-in Imports
+
+Porffor automatically creates several built-in imports:
+
+```javascript
+createImport('print', 1, 0, i => print(i.toString()));
+createImport('printChar', 1, 0, i => print(String.fromCharCode(i)));
+createImport('time', 0, 1, () => performance.now());
+createImport('timeOrigin', 0, 1, () => performance.timeOrigin);
+```
+
+### Custom Import Example
+
+```javascript
+import compile, { createImport } from 'porffor';
+
+// Define custom import before compilation
+createImport('random', 0, 1, () => Math.random());
+
+const { exports } = compile(`
+  export function getRandomNumber() {
+    return random(); // Calls the custom import
+  }
+`, true);
+```
+
+## Export Access
+
+All named exports from your module are available on the `exports` object:
+
+```javascript
+const { exports } = compile(`
+  export const x = 42;
+  export function double(n) { return n * 2; }
+  export class Point {
+    constructor(x, y) {
+      this.x = x;
+      this.y = y;
+    }
+  }
+`, true);
+
+console.log(exports.x);          // 42
+console.log(exports.double(5));  // 10
+console.log(exports.Point);      // [Function: Point]
+```
+
+## Memory Export
+
+The WebAssembly memory instance is always available as `exports.$`:
+
+```javascript
+const { exports } = compile(source, true);
+
+// Access WebAssembly memory
+const memory = exports.$;
+console.log(memory instanceof WebAssembly.Memory); // true
+console.log(memory.buffer instanceof ArrayBuffer); // true
+```
+
+## Default vs Named Exports
+
+### Named Exports
+
+```javascript
+const { exports } = compile(`
+  export const foo = 1;
+  export const bar = 2;
+`, true);
+
+console.log(exports.foo, exports.bar); // 1 2
+```
+
+### Default Export
+
+```javascript
+const { exports } = compile(`
+  export default function hello() {
+    return 'Hello!';
+  }
+`, true);
+
+console.log(exports.default()); // 'Hello!'
+```
+
+## Module vs Script Mode
+
+### Module Mode (`module = true`)
+
+- Enables `import`/`export` statements
+- Strict mode by default
+- Top-level `await` support (if enabled)
+- Named exports available on `exports` object
+
+### Script Mode (`module = false` or undefined)
+
+- No import/export statements
+- Non-strict mode by default
+- Main code execution returned via `exports.main()`
+- Global declarations available
+
+```javascript
+// Script mode
+const { exports } = compile(`
+  var result = 2 + 2;
+  result;
+`);
+
+console.log(exports.main()); // 4
+```
+
+## Re-exports
+
+Currently, Porffor has limited support for re-exports. Direct exports are fully supported:
+
+```javascript
+// Supported
+export const value = 42;
+export function fn() { }
+export class MyClass { }
+
+// Limited support
+// export { value } from './other';
+```
+
+## Type Checking Exports
+
+Exported functions automatically handle type conversions:
+
+```javascript
+const { exports } = compile(`
+  export function typeTest(x) {
+    return typeof x;
+  }
+`, true);
+
+console.log(exports.typeTest(42));      // 'number'
+console.log(exports.typeTest('hello')); // 'string'
+console.log(exports.typeTest(true));    // 'boolean'
+```
+
+## See Also
+
+- [compile()](/api/compile) - Main compilation function
+- [Porffor.wasm](/api/porffor/wasm) - WebAssembly operations
+- [Type Functions](/api/porffor/types) - Runtime type checking

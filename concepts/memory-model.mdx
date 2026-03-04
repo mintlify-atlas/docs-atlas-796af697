@@ -1,0 +1,475 @@
+---
+title: Memory Model
+description: Understanding Porffor's memory management, pointers, and manual memory operations
+---
+
+Porffor uses WebAssembly's linear memory model with manual memory management. Understanding pointers and memory operations is essential for working with objects, strings, and arrays.
+
+## Linear Memory
+
+WebAssembly uses a **linear memory** model: a contiguous, resizable array of bytes.
+
+<CodeGroup>
+```javascript Conceptual Model
+// Memory is a flat byte array
+// [byte0][byte1][byte2][byte3]...[byteN]
+//   ↑       ↑       ↑       ↑
+//  ptr=0   ptr=1   ptr=2   ptr=3
+```
+
+```javascript Memory Layout
+// Objects are stored sequentially
+// String at address 16:
+// [length: 4 bytes][char0][char1][char2]...
+//        ↑
+//     pointer
+```
+</CodeGroup>
+
+### Page-Based Allocation
+
+Porffor organizes memory into **pages** (64 KiB each):
+
+```javascript
+// From compiler/wasmSpec.js:2
+export const PageSize = 65536; // 64 KiB
+
+// From compiler/codegen.js:12-14
+const pagePtr = ind => {
+  if (ind === 0) return 16;
+  return ind * pageSize;
+};
+```
+
+<Info>
+  Page 0 starts at byte 16 (first 16 bytes reserved). Each subsequent page starts at index × 65536.
+</Info>
+
+### Memory Growth
+
+Memory can be dynamically grown:
+
+```typescript
+// Get current memory size in pages
+let pages: i32 = Porffor.memorySize();
+
+// Memory in bytes = pages × 65536
+let bytes: i32 = pages * 65536;
+```
+
+## Pointers
+
+Pointers are memory addresses represented as `i32` values.
+
+<Warning>
+  From `CONTRIBUTING.md:40-42`: The `i32` type should **only be used for pointers**. It's neither signed nor unsigned—signedness depends on the instruction used.
+</Warning>
+
+### Getting a Pointer
+
+Use inline Wasm to get an object's pointer:
+
+```javascript
+// From CONTRIBUTING.md:54-58
+let str: bytestring = "hello";
+let ptr: i32 = Porffor.wasm`local.get ${str}`;
+
+// ptr now contains the memory address of str
+```
+
+<Note>
+  This gets the pointer as a number instead of the object itself. You can then use this pointer for direct memory operations.
+</Note>
+
+### Pointer Arithmetic
+
+Pointers can be manipulated with standard arithmetic:
+
+```javascript
+// From CONTRIBUTING.md:115-120 (simplified)
+let i: i32 = Porffor.wasm`local.get ${str}`;
+const len: i32 = str.length;
+const endPtr: i32 = i + len;
+
+while (i < endPtr) {
+  i++; // Move to next byte
+}
+```
+
+## Memory Operations
+
+Porffor provides low-level memory operations via `Porffor.wasm`:
+
+### Loading Data
+
+<Tabs>
+  <Tab title="8-bit (ByteString)">
+    ```javascript
+    // From CONTRIBUTING.md:78-84
+    // Load 1 byte (unsigned)
+    let charCode: i32 = Porffor.wasm.i32.load8_u(pointer, 0, 4);
+    
+    // Example: Read from ByteString
+    let str: bytestring = "hello";
+    let ptr: i32 = Porffor.wasm`local.get ${str}`;
+    let firstChar: i32 = Porffor.wasm.i32.load8_u(ptr, 0, 4); // 104 ('h')
+    ```
+  </Tab>
+  <Tab title="16-bit (String)">
+    ```javascript
+    // From CONTRIBUTING.md:86-92  
+    // Load 2 bytes (unsigned)
+    let charCode: i32 = Porffor.wasm.i32.load16_u(pointer, 0, 4);
+    
+    // Example: Read from String (UTF-16)
+    let str: string = "hello";
+    let ptr: i32 = Porffor.wasm`local.get ${str}`;
+    let firstChar: i32 = Porffor.wasm.i32.load16_u(ptr, 0, 4); // 104 ('h')
+    ```
+  </Tab>
+  <Tab title="32-bit">
+    ```javascript
+    // From compiler/builtins/porffor.d.ts:14
+    // Load 4 bytes (i32)
+    let value: i32 = Porffor.wasm.i32.load(pointer, 0, 4);
+    
+    // Example: Read length field
+    let str: string = "hello";  
+    let ptr: i32 = Porffor.wasm`local.get ${str}`;
+    let length: i32 = Porffor.wasm.i32.load(ptr, 0, 0); // 5
+    ```
+  </Tab>
+  <Tab title="64-bit">
+    ```javascript
+    // From compiler/builtins/porffor.d.ts:24
+    // Load 8 bytes (f64)
+    let value: f64 = Porffor.wasm.f64.load(pointer, 0, 4);
+    ```
+  </Tab>
+</Tabs>
+
+### Storing Data
+
+<Tabs>
+  <Tab title="8-bit (ByteString)">
+    ```javascript
+    // From CONTRIBUTING.md:62-68
+    // Store 1 byte
+    Porffor.wasm.i32.store8(pointer, characterCode, 0, 4);
+    
+    // Example: Write to ByteString
+    let out: bytestring = '';
+    let ptr: i32 = Porffor.wasm`local.get ${out}`;
+    Porffor.wasm.i32.store8(ptr, 65, 0, 4); // Write 'A'
+    ```
+  </Tab>
+  <Tab title="16-bit (String)">
+    ```javascript
+    // From CONTRIBUTING.md:70-76
+    // Store 2 bytes
+    Porffor.wasm.i32.store16(pointer, characterCode, 0, 4);
+    
+    // Example: Write to String (UTF-16)
+    let out: string = '';
+    let ptr: i32 = Porffor.wasm`local.get ${out}`;
+    Porffor.wasm.i32.store16(ptr, 65, 0, 4); // Write 'A'
+    ```
+  </Tab>
+  <Tab title="32-bit">
+    ```javascript
+    // From compiler/builtins/porffor.d.ts:15
+    // Store 4 bytes (i32)
+    Porffor.wasm.i32.store(pointer, value, 0, 4);
+    
+    // From CONTRIBUTING.md:94-100 - Set object length
+    let arr: any[] = [];
+    let ptr: i32 = Porffor.wasm`local.get ${arr}`;
+    Porffor.wasm.i32.store(ptr, 10, 0, 0); // Set length to 10
+    ```
+  </Tab>
+  <Tab title="64-bit">
+    ```javascript
+    // From compiler/builtins/porffor.d.ts:25
+    // Store 8 bytes (f64)
+    Porffor.wasm.f64.store(pointer, value, 0, 4);
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+  The last two parameters in load/store operations are:
+  1. **align** - Memory alignment (usually `0` or `4`)
+  2. **offset** - Byte offset from pointer (usually `0` or `4`)
+  
+  From `CONTRIBUTING.md` footnote: *You don't need to worry about these in detail.*
+</Note>
+
+## Object Memory Layout
+
+Objects in Porffor have a specific memory structure:
+
+### String Layout
+
+<CodeGroup>
+```javascript ByteString Layout
+// Memory layout for bytestring "hello"
+// Pointer → [length: 4 bytes][h][e][l][l][o]
+//           └─ i32: 5      └─ 1 byte each
+
+let str: bytestring = "hello";
+let ptr: i32 = Porffor.wasm`local.get ${str}`;
+
+// Read length (at offset 0)
+let len: i32 = Porffor.wasm.i32.load(ptr, 0, 0); // 5
+
+// Read first character (at offset 4)
+let char: i32 = Porffor.wasm.i32.load8_u(ptr, 0, 4); // 104 ('h')
+```
+
+```javascript String Layout  
+// Memory layout for string "hi"
+// Pointer → [length: 4 bytes][h: 2 bytes][i: 2 bytes]
+//           └─ i32: 2       └─ UTF-16    └─ UTF-16
+
+let str: string = "hi";
+let ptr: i32 = Porffor.wasm`local.get ${str}`;
+
+// Read length
+let len: i32 = Porffor.wasm.i32.load(ptr, 0, 0); // 2
+
+// Read first character (at offset 4)
+let char: i32 = Porffor.wasm.i32.load16_u(ptr, 0, 4); // 104 ('h')
+```
+</CodeGroup>
+
+### Array Layout
+
+Arrays have similar structure with a length header:
+
+```javascript
+let arr: number[] = [1, 2, 3];
+let ptr: i32 = Porffor.wasm`local.get ${arr}`;
+
+// Read length
+let len: i32 = Porffor.wasm.i32.load(ptr, 0, 0); // 3
+
+// Array elements follow...
+```
+
+## Memory Allocation
+
+Porffor provides manual memory allocation:
+
+### Porffor.malloc
+
+```typescript
+// From compiler/builtins/porffor.d.ts:30
+Porffor.malloc(bytes?: i32): any;
+
+// Allocate memory
+let ptr: i32 = Porffor.wasm`local.get ${Porffor.malloc(100)}`;
+// ptr now points to 100 bytes of memory
+```
+
+### String Allocation
+
+From `compiler/codegen.js:72-76`:
+
+```javascript
+export const allocStr = (scope, str, bytestring) => {
+  // String interning for efficiency
+  const bytes = 4 + str.length * (bytestring ? 1 : 2);
+  return allocBytes(scope, str, bytes);
+};
+```
+
+<Info>
+  Strings need: 4 bytes (length) + (1 or 2 bytes per character)
+</Info>
+
+## Working Example: String Manipulation
+
+Here's a complete example from `CONTRIBUTING.md:109-128`:
+
+```typescript
+export const __ByteString_prototype_toUpperCase = (_this: bytestring) => {
+  // 1. Get length
+  const len: i32 = _this.length;
+
+  // 2. Create output string and set its length
+  let out: bytestring = '';
+  Porffor.wasm.i32.store(out, len, 0, 0);
+
+  // 3. Get pointers to input and output
+  let i: i32 = Porffor.wasm`local.get ${_this}`,
+      j: i32 = Porffor.wasm`local.get ${out}`;
+
+  // 4. Calculate end pointer
+  const endPtr: i32 = i + len;
+  
+  // 5. Loop through each character
+  while (i < endPtr) {
+    // Load character (1 byte)
+    let chr: i32 = Porffor.wasm.i32.load8_u(i++, 0, 4);
+
+    // Convert to uppercase (a-z → A-Z)
+    if (chr >= 97) if (chr <= 122) chr -= 32;
+
+    // Store character (1 byte)
+    Porffor.wasm.i32.store8(j++, chr, 0, 4);
+  }
+
+  return out;
+};
+```
+
+Let's break this down:
+
+<Steps>
+  <Step title="Get Length">
+    ```typescript
+    const len: i32 = _this.length;
+    ```
+    Read the string's length property.
+  </Step>
+  <Step title="Allocate Output">
+    ```typescript
+    let out: bytestring = '';
+    Porffor.wasm.i32.store(out, len, 0, 0);
+    ```
+    Create output string and manually set its length.
+  </Step>
+  <Step title="Get Pointers">
+    ```typescript
+    let i: i32 = Porffor.wasm`local.get ${_this}`,
+        j: i32 = Porffor.wasm`local.get ${out}`;
+    ```
+    Get memory addresses of input and output strings.
+  </Step>
+  <Step title="Calculate Range">
+    ```typescript
+    const endPtr: i32 = i + len;
+    ```
+    Determine where to stop reading (pointer + length).
+  </Step>
+  <Step title="Process Bytes">
+    ```typescript
+    while (i < endPtr) {
+      let chr: i32 = Porffor.wasm.i32.load8_u(i++, 0, 4);
+      if (chr >= 97) if (chr <= 122) chr -= 32;
+      Porffor.wasm.i32.store8(j++, chr, 0, 4);
+    }
+    ```
+    Read each byte, transform it, write to output.
+  </Step>
+</Steps>
+
+## Bulk Memory Operations
+
+Porffor supports WebAssembly's bulk memory operations:
+
+### memory.copy
+
+From `compiler/builtins.js:1027`:
+
+```javascript
+// Copy memory from source to destination
+...Opcodes.memory_copy, 0x00, 0x00
+
+// Example: Copy string data
+// memory.copy(dest, src, numBytes)
+```
+
+### memory.fill
+
+Fill a memory region with a value:
+
+```javascript
+// Fill memory region with byte value
+// memory.fill(dest, value, numBytes)
+```
+
+<Info>
+  These operations are much faster than byte-by-byte copying in a loop.
+</Info>
+
+## Advanced: Inline Wasm
+
+For complete control, use `Porffor.wasm` to write inline WebAssembly:
+
+```typescript
+// From CONTRIBUTING.md:211-251
+const add_i32 = (a: any, b: any) => {
+  Porffor.wasm`
+  local aCasted i32
+  local bCasted i32
+  returns i32 i32
+
+  ;; Get the type of 'a' (parameter index + 1)
+  local.get ${a+1}
+  i32.const 1
+  i32.eq
+  
+  ;; Get the type of 'b'
+  local.get ${b+1}
+  i32.const 1
+  i32.eq
+  
+  i32.and
+  if
+    ;; Both are numbers, cast to i32
+    local.get ${a}
+    i32.from
+    local.set aCasted
+
+    local.get ${b}
+    i32.from  
+    local.set bCasted
+
+    ;; Add and return
+    local.get aCasted
+    local.get bCasted
+    i32.add
+    i32.const 1
+    return
+  end
+
+  ;; Return (0, 0) otherwise
+  i32.const 0
+  i32.const 0
+  return`;
+};
+```
+
+<Warning>
+  Inline Wasm is powerful but dangerous. Incorrect usage can crash the program or corrupt memory. Only use when necessary.
+</Warning>
+
+## Memory Safety
+
+<Note>
+  While Porffor compiles to Wasm (a sandboxed environment), **manual memory operations can still cause bugs**:
+  
+  - Buffer overflows (writing past allocated space)
+  - Reading uninitialized memory
+  - Type confusion (treating one type as another)
+  
+  Always validate pointer arithmetic and bounds!
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Type System" href="/concepts/type-system" icon="diagram-project">
+    Understand types that live in memory
+  </Card>
+  <Card title="Writing Built-ins" href="/contributing/writing-builtins" icon="code">
+    Create functions with memory operations
+  </Card>
+  <Card title="WebAssembly Proposals" href="/concepts/wasm-proposals" icon="cube">
+    Learn about Wasm features Porffor uses
+  </Card>
+  <Card title="Performance Tips" href="/guides/optimization-strategies" icon="gauge-high">
+    Optimize memory usage
+  </Card>
+</CardGroup>

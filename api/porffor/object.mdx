@@ -1,0 +1,430 @@
+---
+title: Object API
+description: Object manipulation and property access utilities
+---
+
+The `Porffor.object` API provides low-level operations for object manipulation, property access, and object state management.
+
+## Property Operations
+
+### lookup
+
+Find a property entry in an object.
+
+```typescript
+Porffor.object.lookup(obj: object, target: any): i32
+```
+
+<ParamField path="obj" type="object" required>
+  Object to search in
+</ParamField>
+
+<ParamField path="target" type="any" required>
+  Property key to find
+</ParamField>
+
+<ResponseField name="return" type="i32">
+  Pointer to property entry, or 0 if not found
+</ResponseField>
+
+### get
+
+Get a property value from an object.
+
+```typescript
+Porffor.object.get(obj: any, key: any): any
+```
+
+<ParamField path="obj" type="any" required>
+  Object to get property from
+</ParamField>
+
+<ParamField path="key" type="any" required>
+  Property key
+</ParamField>
+
+<ResponseField name="return" type="any">
+  Value of the property
+</ResponseField>
+
+### set
+
+Set a property value on an object.
+
+```typescript
+Porffor.object.set(obj: object, key: any, value: any): any
+```
+
+<ParamField path="obj" type="object" required>
+  Object to set property on
+</ParamField>
+
+<ParamField path="key" type="any" required>
+  Property key
+</ParamField>
+
+<ParamField path="value" type="any" required>
+  Value to set
+</ParamField>
+
+<ResponseField name="return" type="any">
+  The value that was set
+</ResponseField>
+
+### define
+
+Define a property with specific flags.
+
+```typescript
+Porffor.object.define(obj: object, key: any, value: any, flags: i32): void
+```
+
+<ParamField path="obj" type="object" required>
+  Object to define property on
+</ParamField>
+
+<ParamField path="key" type="any" required>
+  Property key
+</ParamField>
+
+<ParamField path="value" type="any" required>
+  Property value
+</ParamField>
+
+<ParamField path="flags" type="i32" required>
+  Property descriptor flags:
+  - `0b0001` - accessor
+  - `0b0010` - configurable
+  - `0b0100` - enumerable
+  - `0b1000` - writable
+</ParamField>
+
+### delete
+
+Delete a property from an object.
+
+```typescript
+Porffor.object.delete(obj: object, key: any): boolean
+```
+
+<ParamField path="obj" type="object" required>
+  Object to delete property from
+</ParamField>
+
+<ParamField path="key" type="any" required>
+  Property key to delete
+</ParamField>
+
+<ResponseField name="return" type="boolean">
+  `true` if property was deleted, `false` otherwise
+</ResponseField>
+
+## Property Descriptor Operations
+
+### writeKey
+
+Write a property key to memory.
+
+```typescript
+Porffor.object.writeKey(ptr: i32, key: any, hash: i32): void
+```
+
+<ParamField path="ptr" type="i32" required>
+  Memory pointer to write to
+</ParamField>
+
+<ParamField path="key" type="any" required>
+  Property key
+</ParamField>
+
+<ParamField path="hash" type="i32" required>
+  Hash value for the key
+</ParamField>
+
+### isEnumerable
+
+Check if a property is enumerable.
+
+```typescript
+Porffor.object.isEnumerable(entryPtr: i32): boolean
+```
+
+<ParamField path="entryPtr" type="i32" required>
+  Pointer to property entry
+</ParamField>
+
+<ResponseField name="return" type="boolean">
+  `true` if property is enumerable
+</ResponseField>
+
+## Accessor Operations
+
+### packAccessor
+
+Pack getter and setter functions into an accessor value.
+
+```typescript
+Porffor.object.packAccessor(get: any, set: any): f64
+```
+
+<ParamField path="get" type="any" required>
+  Getter function
+</ParamField>
+
+<ParamField path="set" type="any" required>
+  Setter function
+</ParamField>
+
+<ResponseField name="return" type="f64">
+  Packed accessor value
+</ResponseField>
+
+### accessorGet
+
+Get the getter function from a property entry.
+
+```typescript
+Porffor.object.accessorGet(entryPtr: i32): Function
+```
+
+<ParamField path="entryPtr" type="i32" required>
+  Pointer to accessor property entry
+</ParamField>
+
+<ResponseField name="return" type="Function">
+  Getter function
+</ResponseField>
+
+### accessorSet
+
+Get the setter function from a property entry.
+
+```typescript
+Porffor.object.accessorSet(entryPtr: i32): Function
+```
+
+<ParamField path="entryPtr" type="i32" required>
+  Pointer to accessor property entry
+</ParamField>
+
+<ResponseField name="return" type="Function">
+  Setter function
+</ResponseField>
+
+## Object State Management
+
+### preventExtensions
+
+Prevent new properties from being added to an object.
+
+```typescript
+Porffor.object.preventExtensions(obj: object): void
+```
+
+<ParamField path="obj" type="object" required>
+  Object to make non-extensible
+</ParamField>
+
+### isInextensible
+
+Check if an object is extensible.
+
+```typescript
+Porffor.object.isInextensible(obj: object): boolean
+```
+
+<ParamField path="obj" type="object" required>
+  Object to check
+</ParamField>
+
+<ResponseField name="return" type="boolean">
+  `true` if object is not extensible
+</ResponseField>
+
+## Flag Operations
+
+### overrideAllFlags
+
+Override property flags for all properties in an object.
+
+```typescript
+Porffor.object.overrideAllFlags(obj: object, overrideOr: i32, overrideAnd: i32): void
+```
+
+<ParamField path="obj" type="object" required>
+  Object to modify
+</ParamField>
+
+<ParamField path="overrideOr" type="i32" required>
+  Flags to set (OR operation)
+</ParamField>
+
+<ParamField path="overrideAnd" type="i32" required>
+  Flags to clear (AND operation)
+</ParamField>
+
+### checkAllFlags
+
+Check if all properties match specific flag patterns.
+
+```typescript
+Porffor.object.checkAllFlags(
+  obj: object,
+  dataAnd: i32,
+  accessorAnd: i32,
+  dataExpected: i32,
+  accessorExpected: i32
+): boolean
+```
+
+<ParamField path="obj" type="object" required>
+  Object to check
+</ParamField>
+
+<ParamField path="dataAnd" type="i32" required>
+  Mask for data properties
+</ParamField>
+
+<ParamField path="accessorAnd" type="i32" required>
+  Mask for accessor properties
+</ParamField>
+
+<ParamField path="dataExpected" type="i32" required>
+  Expected flags for data properties
+</ParamField>
+
+<ParamField path="accessorExpected" type="i32" required>
+  Expected flags for accessor properties
+</ParamField>
+
+<ResponseField name="return" type="boolean">
+  `true` if all properties match the expected patterns
+</ResponseField>
+
+## Type Checking
+
+### isObject
+
+Check if a value is an object.
+
+```typescript
+Porffor.object.isObject(arg: any): boolean
+```
+
+<ParamField path="arg" type="any" required>
+  Value to check
+</ParamField>
+
+<ResponseField name="return" type="boolean">
+  `true` if value is an object (excluding null)
+</ResponseField>
+
+### isObjectOrNull
+
+Check if a value is an object or null.
+
+```typescript
+Porffor.object.isObjectOrNull(arg: any): boolean
+```
+
+<ParamField path="arg" type="any" required>
+  Value to check
+</ParamField>
+
+<ResponseField name="return" type="boolean">
+  `true` if value is an object or null
+</ResponseField>
+
+### isObjectOrSymbol
+
+Check if a value is an object or symbol.
+
+```typescript
+Porffor.object.isObjectOrSymbol(arg: any): boolean
+```
+
+<ParamField path="arg" type="any" required>
+  Value to check
+</ParamField>
+
+<ResponseField name="return" type="boolean">
+  `true` if value is an object or symbol
+</ResponseField>
+
+## Object Expression Helpers
+
+### expr.init
+
+Initialize a property in an object literal.
+
+```typescript
+Porffor.object.expr.init(obj: object, key: any, value: any): void
+```
+
+### expr.get
+
+Get property for object expression.
+
+```typescript
+Porffor.object.expr.get(obj: object, key: any, value: any): void
+```
+
+### expr.set
+
+Set property for object expression.
+
+```typescript
+Porffor.object.expr.set(obj: object, key: any, value: any): void
+```
+
+## Usage Examples
+
+### Dynamic Property Access
+
+```javascript
+function safeGet(obj, key, defaultValue) {
+  const entry = Porffor.object.lookup(obj, key);
+  if (entry === 0) return defaultValue;
+  return Porffor.object.get(obj, key);
+}
+```
+
+### Creating Frozen Objects
+
+```javascript
+function createFrozen(data) {
+  const obj = {};
+  for (const key in data) {
+    // Define as non-writable, non-configurable, enumerable
+    Porffor.object.define(obj, key, data[key], 0b0100);
+  }
+  Porffor.object.preventExtensions(obj);
+  return obj;
+}
+```
+
+### Property Enumeration
+
+```javascript
+function getEnumerableKeys(obj) {
+  const keys = [];
+  let ptr = Porffor.wasm`local.get ${obj}` + 8;
+  const endPtr = ptr + Porffor.wasm.i32.load16_u(obj, 0, 0) * 18;
+  
+  for (; ptr < endPtr; ptr += 18) {
+    if (Porffor.object.isEnumerable(ptr)) {
+      const rawKey = Porffor.wasm.i32.load(ptr, 0, 4);
+      // Extract and add key
+      keys.push(/* decoded key */);
+    }
+  }
+  
+  return keys;
+}
+```
+
+## See Also
+
+- [Object Built-ins](/api/builtins/object) - Standard Object methods
+- [Type Functions](/api/porffor/types) - Type checking
+- [Porffor.wasm](/api/porffor/wasm) - Memory operations

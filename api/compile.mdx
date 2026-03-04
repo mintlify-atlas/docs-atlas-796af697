@@ -1,0 +1,150 @@
+---
+title: compile()
+description: Compile JavaScript source code to WebAssembly
+---
+
+The `compile()` function is Porffor's main compiler API that transforms JavaScript code into WebAssembly.
+
+## Function Signature
+
+```javascript
+compile(source: string, module?: boolean, print?: (str: string) => void)
+```
+
+<ParamField path="source" type="string" required>
+  JavaScript source code to compile
+</ParamField>
+
+<ParamField path="module" type="boolean" default="false">
+  Whether the source should be treated as a module. When `true`, enables module features like `import`/`export`. Defaults to script mode.
+</ParamField>
+
+<ParamField path="print" type="function" default="process.stdout.write">
+  Function to use for printing output (used by `console.log`, etc). Receives a string argument.
+  
+  **Default**: `str => process.stdout.write(str)`
+</ParamField>
+
+## Return Value
+
+<ResponseField name="exports" type="object">
+  Object containing exported functions from the compiled code. Each function returns the JavaScript representation of Porffor values.
+  
+  - `main` - The main entry point (renamed from `m`)
+  - `$` - WebAssembly memory instance
+  - Other named exports from the source code
+</ResponseField>
+
+<ResponseField name="wasm" type="Uint8Array">
+  Raw WebAssembly binary (Wasm bytecode)
+</ResponseField>
+
+<ResponseField name="times" type="number[]">
+  Array of compilation timing metrics:
+  - `[0]` - Compilation time in milliseconds
+  - `[1]` - Instantiation time in milliseconds
+</ResponseField>
+
+<ResponseField name="pages" type="number">
+  Number of WebAssembly memory pages allocated
+</ResponseField>
+
+<ResponseField name="c" type="string" optional>
+  Generated C code (only when using C target)
+</ResponseField>
+
+## Usage
+
+### Basic Compilation
+
+```javascript
+import compile from 'porffor';
+
+const { exports } = compile(`
+  export const add = (a, b) => a + b;
+`, true);
+
+console.log(exports.add(2, 3)); // 5
+```
+
+### Script Mode
+
+```javascript
+const { exports, wasm } = compile(`
+  function factorial(n) {
+    return n <= 1 ? 1 : n * factorial(n - 1);
+  }
+  factorial(5);
+`);
+
+const result = exports.main();
+console.log(result); // 120
+```
+
+### Custom Print Function
+
+```javascript
+const output = [];
+const { exports } = compile(
+  `console.log('Hello, Porffor!');`,
+  false,
+  str => output.push(str)
+);
+
+exports.main();
+console.log(output); // ['Hello, Porffor!']
+```
+
+### Accessing Compilation Metrics
+
+```javascript
+const { times, pages, wasm } = compile(source, true);
+
+console.log(`Compiled in ${times[0].toFixed(2)}ms`);
+console.log(`Instantiated in ${times[1].toFixed(2)}ms`);
+console.log(`Memory pages: ${pages}`);
+console.log(`Binary size: ${wasm.length} bytes`);
+```
+
+## Advanced Usage
+
+### Compiling from Existing AST
+
+You can also pass a pre-compiled object instead of source code:
+
+```javascript
+const compiled = compile(source, true);
+// Later, re-instantiate with the same compiled output
+const { exports } = compile(compiled);
+```
+
+## Exception Handling
+
+The compiled functions throw JavaScript exceptions that match the behavior of the original code:
+
+```javascript
+const { exports } = compile(`
+  export const divide = (a, b) => {
+    if (b === 0) throw new Error('Division by zero');
+    return a / b;
+  };
+`, true);
+
+try {
+  exports.divide(10, 0);
+} catch (e) {
+  console.error(e.message); // "Division by zero"
+}
+```
+
+## Performance Notes
+
+- Compilation happens at runtime and may take time for large codebases
+- The `times` array provides metrics for profiling
+- Set `Prefs.profileCompiler = true` for detailed compilation logging
+- Use `Prefs.disassemble = true` to get WebAssembly disassembly output
+
+## See Also
+
+- [Module API](/api/module-api) - For module-specific compilation features
+- [Porffor.wasm](/api/porffor/wasm) - Low-level WebAssembly operations

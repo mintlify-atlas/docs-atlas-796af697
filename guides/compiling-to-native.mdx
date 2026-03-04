@@ -1,0 +1,462 @@
+---
+title: "Compiling to Native Binaries"
+description: "Compile JavaScript to standalone native executables with Porffor's 2c compiler"
+---
+
+## Overview
+
+Porffor can compile JavaScript directly to native binaries that run without any runtime dependencies. This is accomplished through **2c**, Porffor's own WebAssembly-to-C compiler, which generates optimized C code that's then compiled to machine code.
+
+<Warning>
+  Compiling to native binaries uses 2c, which is experimental. While functional, you may encounter edge cases or limitations.
+</Warning>
+
+## How It Works
+
+The native compilation pipeline:
+
+```
+JavaScript → Wasm → C → Native Binary
+   (Porffor)   (2c)  (clang/gcc/zig)
+```
+
+1. **Porffor** compiles JavaScript to WebAssembly bytecode
+2. **2c** converts Wasm to optimized C source code
+3. **C compiler** produces the final native executable
+
+## Basic Usage
+
+<Steps>
+<Step title="Create a JavaScript file">
+
+```javascript hello.js
+console.log('Hello from native code!');
+
+function factorial(n) {
+  if (n <= 1) return 1;
+  return n * factorial(n - 1);
+}
+
+for (let i = 1; i <= 10; i++) {
+  console.log(`${i}! = ${factorial(i)}`);
+}
+```
+
+</Step>
+
+<Step title="Compile to native binary">
+
+Use the `native` command:
+
+```bash
+porf native hello.js hello
+```
+
+On Windows, specify the `.exe` extension:
+
+```bash
+porf native hello.js hello.exe
+```
+
+</Step>
+
+<Step title="Run the native executable">
+
+```bash
+./hello
+# Output: Hello from native code!
+# Followed by factorial calculations
+```
+
+The binary runs directly on your system with no dependencies.
+
+</Step>
+</Steps>
+
+## Compiler Selection
+
+Porffor supports multiple C compilers. Choose with the `--compiler` flag:
+
+### Clang (Default)
+
+```bash
+porf native --compiler=clang input.js output
+```
+
+Recommended for most use cases. Clang typically produces fast binaries with good optimization.
+
+### GCC
+
+```bash
+porf native --compiler=gcc input.js output
+```
+
+GCC is widely available and produces highly optimized code, especially with PGO.
+
+### Zig
+
+```bash
+porf native --compiler=zig input.js output
+```
+
+Zig provides cross-compilation capabilities and modern optimization.
+
+<Info>
+  The specified compiler must be installed and available in your PATH.
+</Info>
+
+## Optimization Levels
+
+Control C compiler optimization with the `--cO` flag:
+
+### Ofast (Default)
+
+```bash
+porf native --cO=Ofast input.js output
+```
+
+Most aggressive optimization:
+- All O3 optimizations
+- Disregards strict standards compliance
+- Best performance for most code
+
+### O3
+
+```bash
+porf native --cO=O3 input.js output
+```
+
+Aggressive optimization while maintaining standards compliance:
+- Inline functions
+- Loop vectorization
+- Advanced interprocedural optimization
+
+### O2
+
+```bash
+porf native --cO=O2 input.js output
+```
+
+Balanced optimization:
+- Good performance improvements
+- Reasonable compilation time
+- Safe for most code
+
+### O1
+
+```bash
+porf native --cO=O1 input.js output
+```
+
+Basic optimization:
+- Minimal performance improvements
+- Fast compilation
+- Good for debugging
+
+### O0
+
+```bash
+porf native --cO=O0 input.js output
+```
+
+No optimization:
+- Fastest compilation
+- Easiest debugging
+- Predictable code generation
+
+## Combining Optimizations
+
+For maximum performance, combine Porffor and C compiler optimizations:
+
+```bash
+porf native -O2 --cO=Ofast --compiler=clang input.js output
+```
+
+This command:
+1. Optimizes at the Wasm level with Porffor's `-O2`
+2. Generates optimized C code via 2c
+3. Compiles with Clang's `-Ofast` for maximum native performance
+
+## Real-World Examples
+
+### Example: Performance Benchmark
+
+```javascript benchmark.js
+const iterations = 1000000;
+const data = new Array(100).fill(0).map((_, i) => i);
+
+const start = performance.now();
+let sum = 0;
+
+for (let i = 0; i < iterations; i++) {
+  for (let j = 0; j < data.length; j++) {
+    sum += data[j];
+  }
+}
+
+const elapsed = performance.now() - start;
+console.log(`Computed ${iterations * data.length} operations`);
+console.log(`Time: ${elapsed.toFixed(2)}ms`);
+console.log(`Sum: ${sum}`);
+```
+
+Compile with maximum optimization:
+
+```bash
+porf native -O2 --cO=Ofast --compiler=clang benchmark.js bench
+time ./bench
+```
+
+### Example: Command-Line Tool
+
+```javascript greet.js
+const args = Porffor.argv;
+
+if (args.length < 2) {
+  console.log('Usage: greet <name>');
+  Porffor.exit(1);
+}
+
+const name = args[1];
+console.log(`Hello, ${name}!`);
+console.log(`Welcome to Porffor native binaries.`);
+```
+
+Compile and use:
+
+```bash
+porf native greet.js greet
+./greet World
+# Output: Hello, World!
+#         Welcome to Porffor native binaries.
+```
+
+## Advanced Features
+
+### Profile-Guided Optimization (PGO)
+
+PGO uses runtime profiling to guide optimization:
+
+<Steps>
+<Step title="Enable PGO during compilation">
+
+```bash
+porf native --pgo input.js output
+```
+
+</Step>
+
+<Step title="Run the binary with typical workload">
+
+```bash
+./output
+# Porffor collects profiling data during execution
+```
+
+</Step>
+
+<Step title="Recompile with profiling data">
+
+Porffor uses the collected data to optimize hot code paths automatically.
+
+</Step>
+</Steps>
+
+<Tip>
+  PGO works best for compute-intensive applications with predictable hot paths.
+</Tip>
+
+### Cyclone Optimizer
+
+Cyclone performs partial constant evaluation at the Wasm level:
+
+```bash
+porf native --cyclone input.js output
+```
+
+Automatically enabled with `-O2`:
+
+```bash
+porf native -O2 input.js output  # Cyclone enabled
+```
+
+Cyclone optimizations:
+- Constant folding
+- Dead code elimination  
+- Type-based optimizations
+- Loop simplification
+
+### Binary Stripping
+
+Output binaries are stripped by default (symbols removed). To keep symbols for debugging:
+
+```bash
+porf native -d input.js output
+```
+
+The `-d` flag:
+- Preserves debug symbols
+- Includes function names
+- Enables better debugger support
+
+## Compiling to C Source
+
+You can also generate C source code without compiling to native:
+
+```bash
+porf c input.js output.c
+```
+
+Or print to stdout:
+
+```bash
+porf c input.js
+```
+
+This is useful for:
+- Inspecting generated C code
+- Custom compilation pipelines
+- Cross-compilation workflows
+- Understanding 2c's code generation
+
+## 2c Compiler Details
+
+### What is 2c?
+
+2c is Porffor's WebAssembly-to-C compiler. Unlike `wasm2c` and similar tools, 2c:
+
+- Generates specific, optimized C code (not generic translation)
+- Uses Porffor's internal type information
+- Produces minimal boilerplate
+- Targets CLI binaries specifically
+- Requires no external runtime files
+
+### Generated C Code Structure
+
+The generated C includes:
+
+```c
+typedef uint8_t u8;
+typedef uint16_t u16;
+typedef int32_t i32;
+typedef uint32_t u32;
+typedef int64_t i64;
+typedef uint64_t u64;
+typedef float f32;
+typedef double f64;
+
+const f64 NaN = 0e+0/0e+0;
+const f64 Infinity = 1e+0/0e+0;
+
+// Your compiled code follows...
+```
+
+## Performance Characteristics
+
+### Native vs Wasm
+
+Native binaries typically:
+- **Start faster**: No Wasm instantiation overhead
+- **Run faster**: Direct machine code execution
+- **Use less memory**: No engine overhead
+- **Have smaller size**: Stripped binaries are compact
+
+### Benchmarking
+
+For compute-intensive tasks, native compilation can be 2-10x faster than interpreted JavaScript and competitive with JIT-compiled JavaScript after warmup.
+
+## Platform Support
+
+Native compilation works on:
+
+- **Linux**: x86_64, ARM64
+- **macOS**: x86_64, ARM64 (Apple Silicon)
+- **Windows**: x86_64
+
+Cross-compilation depends on your C compiler's capabilities.
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Compiler not found error">
+    Install the required C compiler:
+
+    **Ubuntu/Debian:**
+    ```bash
+    sudo apt install clang
+    # or
+    sudo apt install gcc
+    ```
+
+    **macOS:**
+    ```bash
+    xcode-select --install
+    ```
+
+    **Windows:**
+    Install Visual Studio Build Tools or LLVM/Clang for Windows.
+  </Accordion>
+
+  <Accordion title="Binary crashes or produces wrong output">
+    Try lower optimization levels:
+    ```bash
+    porf native -O1 --cO=O2 input.js output
+    ```
+
+    Enable debug mode:
+    ```bash
+    porf native -d input.js output
+    ```
+
+    Check for unsupported features:
+    - Complex async patterns
+    - Dynamic eval/Function
+    - Scope-crossing variables
+  </Accordion>
+
+  <Accordion title="Very slow compilation">
+    High optimization levels can be slow:
+    ```bash
+    porf native -O1 --cO=O2 input.js output  # Faster compilation
+    ```
+
+    Or disable Porffor optimizations:
+    ```bash
+    porf native -O0 --cO=O3 input.js output
+    ```
+  </Accordion>
+
+  <Accordion title="Large binary size">
+    Ensure stripping is enabled (default):
+    ```bash
+    porf native input.js output  # Already stripped
+    ```
+
+    Use optimization to reduce code size:
+    ```bash
+    porf native -O2 input.js output
+    ```
+
+    Avoid creating many objects and large data structures in global scope.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Optimization Strategies" icon="gauge-high" href="/guides/optimization-strategies">
+    Write code that compiles to faster binaries
+  </Card>
+  
+  <Card title="Debugging" icon="bug" href="/guides/debugging">
+    Debug native binaries and C code
+  </Card>
+  
+  <Card title="WebAssembly Output" icon="cube" href="/guides/compiling-to-wasm">
+    Compile to Wasm instead of native
+  </Card>
+  
+  <Card title="TypeScript Support" icon="code" href="/guides/using-typescript">
+    Use TypeScript for better type safety
+  </Card>
+</CardGroup>

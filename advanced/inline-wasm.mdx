@@ -1,0 +1,248 @@
+---
+title: "Inline WebAssembly"
+description: "Write inline WebAssembly bytecode using the Porffor.wasm template tag for low-level performance optimization"
+---
+
+## Overview
+
+Porffor provides the `Porffor.wasm` template tag, which allows you to write inline WebAssembly bytecode directly in your TypeScript/JavaScript code. This is similar to C's `asm` macro and enables fine-grained performance optimization and low-level memory operations.
+
+The syntax is similar to [WebAssembly Text Format (WAT)](https://developer.mozilla.org/en-US/docs/WebAssembly/Understanding_the_text_format), making it familiar if you've worked with WebAssembly before.
+
+<Warning>
+Inline Wasm is an advanced feature that requires understanding WebAssembly concepts like locals, stack-based operations, and valtypes. Use it only when you need to optimize beyond what the compiler can do.
+</Warning>
+
+## Basic Syntax
+
+The `Porffor.wasm` template tag accepts WAT-like instructions:
+
+```typescript
+Porffor.wasm`
+  local.get ${variableName}
+  i32.const 42
+  i32.add
+`
+```
+
+You can interpolate JavaScript variables using `${...}` syntax to reference their indices in the WebAssembly local space.
+
+## Declaring Locals
+
+Declare typed local variables at the beginning of your inline Wasm block:
+
+```typescript
+Porffor.wasm`
+  local aCasted i32
+  local bCasted i32
+  local result f64
+  
+  ;; rest of your code
+`
+```
+
+Available types:
+- `i32` - 32-bit integer (use for pointers)
+- `i64` - 64-bit integer
+- `f64` - 64-bit float (standard number type)
+
+## Setting Return Types
+
+By default, Porffor functions return `(f64, i32)` - a valtype and type tag. You can override this:
+
+```typescript
+Porffor.wasm`
+  returns i32 i32
+  
+  ;; your code must ensure the stack has two i32 values before return
+  i32.const 42
+  i32.const 1
+  return
+`
+```
+
+<Warning>
+Be extremely careful when changing return types. Porffor expects most functions to return `(valtype, i32)`. Mismatched return types will cause runtime errors.
+</Warning>
+
+## Getting Pointers
+
+To get the memory pointer of a variable:
+
+```typescript
+const str: bytestring = 'hello';
+const ptr: i32 = Porffor.wasm`local.get ${str}`;
+```
+
+This returns the pointer as an `i32` instead of the object itself.
+
+## Accessing Variable Types
+
+Porffor stores type information alongside values. To access the type of a variable:
+
+```typescript
+Porffor.wasm`
+  local.get ${a+1}  ;; gets the type of variable 'a'
+  i32.const 1       ;; TYPES.number
+  i32.eq            ;; check if a is a number
+`
+```
+
+Internally, variables are stored as pairs: `variable` at index `n` and `variable#type` at index `n+1`.
+
+## Custom Instructions
+
+Porffor provides custom instructions for converting between valtypes and specific types:
+
+### Type Conversions
+
+```typescript
+Porffor.wasm`
+  local.get ${myNumber}
+  i32.from          ;; convert valtype (f64) to i32
+  local.set myInt
+  
+  local.get myInt
+  i32.to            ;; convert i32 to valtype (f64)
+`
+```
+
+Available conversions:
+- `i32.from` - convert valtype to i32
+- `i32.to` - convert i32 to valtype
+- `f64.from` - convert valtype to f64
+- `f64.to` - convert f64 to valtype
+
+## Complete Example
+
+Here's a real example from Porffor's built-ins - adding two i32 values:
+
+```typescript
+export const add_i32 = (a: any, b: any) => {
+  Porffor.wasm`
+  local aCasted i32
+  local bCasted i32
+  returns i32 i32
+
+  ;; if both types are number
+  local.get ${a+1}
+  i32.const 1
+  i32.eq
+  local.get ${b+1}
+  i32.const 1
+  i32.eq
+  i32.and
+  if
+    local.get ${a}
+    i32.from
+    local.set aCasted
+
+    local.get ${b}
+    i32.from
+    local.set bCasted
+
+    local.get aCasted
+    local.get bCasted
+    i32.add
+    i32.const 1
+    return
+  end
+
+  ;; return (0, 0) otherwise
+  i32.const 0
+  i32.const 0
+  return`;
+}
+```
+
+## Control Flow
+
+Use standard WebAssembly control flow instructions:
+
+```typescript
+Porffor.wasm`
+  local.get ${condition}
+  if
+    ;; true branch
+  end
+  
+  ;; or with else
+  local.get ${condition}
+  if
+    ;; true branch
+  else
+    ;; false branch
+  end
+  
+  ;; loops
+  loop
+    ;; loop body
+    local.get ${counter}
+    i32.const 1
+    i32.add
+    local.set ${counter}
+    
+    local.get ${counter}
+    i32.const 10
+    i32.lt_s
+    br_if 0  ;; continue loop if true
+  end
+`
+```
+
+## Comments
+
+Use `;;` for single-line comments (WebAssembly's equivalent of `//`):
+
+```typescript
+Porffor.wasm`
+  ;; This is a comment
+  local.get ${value}
+  i32.const 42  ;; inline comment
+  i32.add
+`
+```
+
+## Use Cases
+
+Use inline WebAssembly when:
+
+- **Performance critical code** - You need to squeeze out every bit of performance
+- **Type-specific optimizations** - Different code paths for different types
+- **Memory operations** - Direct memory access for strings, arrays, objects
+- **SIMD operations** - Vector operations not expressible in JavaScript
+- **Low-level bit manipulation** - Operations the compiler might not optimize well
+
+<Note>
+Always benchmark! Inline Wasm adds complexity. The compiler is often smart enough without it.
+</Note>
+
+## Best Practices
+
+1. **Keep it minimal** - Use inline Wasm sparingly for hot paths only
+2. **Document heavily** - Wasm code is harder to read than JavaScript
+3. **Test thoroughly** - Type mismatches and stack errors can be subtle
+4. **Check types carefully** - Always validate types when working with `any`
+5. **Preserve return types** - Match Porffor's `(f64, i32)` convention unless absolutely necessary
+
+## Common Pitfalls
+
+<Warning>
+**Stack Imbalance**: Ensure your stack is correctly balanced before `return`. The stack must match the declared return type.
+
+**Type Confusion**: Remember that `${variable}` gives you the value, `${variable+1}` gives you the type.
+
+**Incorrect Alignment**: Memory operations require proper alignment and offset parameters.
+</Warning>
+
+## Related APIs
+
+For memory operations, see:
+- [Porffor API Reference](/advanced/porffor-api) - Memory intrinsics
+- [Custom Built-ins](/advanced/custom-builtins) - Writing full custom functions
+
+## Further Reading
+
+- [WebAssembly Opcodes Reference](https://pengowray.github.io/wasm-ops/)
+- [Understanding WebAssembly Text Format](https://developer.mozilla.org/en-US/docs/WebAssembly/Understanding_the_text_format)
+- Porffor source: `compiler/codegen.js` - Full list of custom instructions

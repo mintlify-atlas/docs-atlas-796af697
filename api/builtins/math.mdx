@@ -1,0 +1,596 @@
+---
+title: Math Built-ins
+description: Mathematical functions and constants
+---
+
+Porffor implements the full Math API for mathematical operations.
+
+## Math Constants
+
+### Math.E
+
+Euler's number (approximately 2.718).
+
+```javascript
+console.log(Math.E);  // 2.718281828459045
+```
+
+### Math.LN2
+
+Natural logarithm of 2 (approximately 0.693).
+
+```javascript
+console.log(Math.LN2);  // 0.6931471805599453
+```
+
+### Math.LN10
+
+Natural logarithm of 10 (approximately 2.303).
+
+```javascript
+console.log(Math.LN10);  // 2.302585092994046
+```
+
+### Math.LOG2E
+
+Base-2 logarithm of E (approximately 1.443).
+
+```javascript
+console.log(Math.LOG2E);  // 1.4426950408889634
+```
+
+### Math.LOG10E
+
+Base-10 logarithm of E (approximately 0.434).
+
+```javascript
+console.log(Math.LOG10E);  // 0.4342944819032518
+```
+
+### Math.PI
+
+Pi (approximately 3.14159).
+
+```javascript
+console.log(Math.PI);  // 3.141592653589793
+```
+
+### Math.SQRT1_2
+
+Square root of 1/2 (approximately 0.707).
+
+```javascript
+console.log(Math.SQRT1_2);  // 0.7071067811865476
+```
+
+### Math.SQRT2
+
+Square root of 2 (approximately 1.414).
+
+```javascript
+console.log(Math.SQRT2);  // 1.4142135623730951
+```
+
+## Basic Operations
+
+### Math.abs
+
+Returns absolute value.
+
+```javascript
+Math.abs(x: number): number
+```
+
+```javascript
+console.log(Math.abs(-5));     // 5
+console.log(Math.abs(3.14));   // 3.14
+console.log(Math.abs(-0));     // 0
+```
+
+### Math.sign
+
+Returns sign of a number (-1, 0, or 1).
+
+```javascript
+Math.sign(x: number): number
+```
+
+```javascript
+console.log(Math.sign(-5));    // -1
+console.log(Math.sign(0));     // 0
+console.log(Math.sign(5));     // 1
+```
+
+### Math.ceil
+
+Rounds up to nearest integer.
+
+```javascript
+Math.ceil(x: number): number
+```
+
+```javascript
+console.log(Math.ceil(4.2));   // 5
+console.log(Math.ceil(4.8));   // 5
+console.log(Math.ceil(-4.2));  // -4
+```
+
+### Math.floor
+
+Rounds down to nearest integer.
+
+```javascript
+Math.floor(x: number): number
+```
+
+```javascript
+console.log(Math.floor(4.2));   // 4
+console.log(Math.floor(4.8));   // 4
+console.log(Math.floor(-4.2));  // -5
+```
+
+### Math.round
+
+Rounds to nearest integer.
+
+```javascript
+Math.round(x: number): number
+```
+
+```javascript
+console.log(Math.round(4.2));   // 4
+console.log(Math.round(4.5));   // 5
+console.log(Math.round(4.8));   // 5
+console.log(Math.round(-4.5));  // -4
+```
+
+### Math.trunc
+
+Removes fractional part.
+
+```javascript
+Math.trunc(x: number): number
+```
+
+```javascript
+console.log(Math.trunc(4.8));   // 4
+console.log(Math.trunc(-4.8));  // -4
+```
+
+## Min/Max
+
+### Math.min
+
+Returns smallest value.
+
+```javascript
+Math.min(...values: number[]): number
+```
+
+```javascript
+console.log(Math.min(1, 2, 3));        // 1
+console.log(Math.min(-5, 0, 5));       // -5
+console.log(Math.min());               // Infinity
+```
+
+### Math.max
+
+Returns largest value.
+
+```javascript
+Math.max(...values: number[]): number
+```
+
+```javascript
+console.log(Math.max(1, 2, 3));        // 3
+console.log(Math.max(-5, 0, 5));       // 5
+console.log(Math.max());               // -Infinity
+```
+
+## Power and Root
+
+### Math.pow
+
+Returns base to the exponent power.
+
+```javascript
+Math.pow(base: number, exponent: number): number
+```
+
+```javascript
+console.log(Math.pow(2, 3));   // 8
+console.log(Math.pow(4, 0.5)); // 2
+console.log(Math.pow(2, -1));  // 0.5
+```
+
+### Math.sqrt
+
+Returns square root.
+
+```javascript
+Math.sqrt(x: number): number
+```
+
+```javascript
+console.log(Math.sqrt(4));     // 2
+console.log(Math.sqrt(9));     // 3
+console.log(Math.sqrt(2));     // 1.4142135623730951
+console.log(Math.sqrt(-1));    // NaN
+```
+
+### Math.cbrt
+
+Returns cube root.
+
+```javascript
+Math.cbrt(x: number): number
+```
+
+```javascript
+console.log(Math.cbrt(8));     // 2
+console.log(Math.cbrt(27));    // 3
+console.log(Math.cbrt(-8));    // -2
+```
+
+### Math.hypot
+
+Returns square root of sum of squares.
+
+```javascript
+Math.hypot(...values: number[]): number
+```
+
+```javascript
+console.log(Math.hypot(3, 4));      // 5
+console.log(Math.hypot(5, 12));     // 13
+console.log(Math.hypot(1, 2, 3));   // 3.7416573867739413
+```
+
+## Exponential and Logarithmic
+
+### Math.exp
+
+Returns e raised to a power.
+
+```javascript
+Math.exp(x: number): number
+```
+
+```javascript
+console.log(Math.exp(0));      // 1
+console.log(Math.exp(1));      // 2.718281828459045 (Math.E)
+console.log(Math.exp(2));      // 7.38905609893065
+```
+
+### Math.expm1
+
+Returns e^x - 1.
+
+```javascript
+Math.expm1(x: number): number
+```
+
+```javascript
+console.log(Math.expm1(0));    // 0
+console.log(Math.expm1(1));    // 1.718281828459045
+```
+
+### Math.log
+
+Returns natural logarithm.
+
+```javascript
+Math.log(x: number): number
+```
+
+```javascript
+console.log(Math.log(Math.E)); // 1
+console.log(Math.log(10));     // 2.302585092994046
+console.log(Math.log(1));      // 0
+```
+
+### Math.log10
+
+Returns base-10 logarithm.
+
+```javascript
+Math.log10(x: number): number
+```
+
+```javascript
+console.log(Math.log10(10));   // 1
+console.log(Math.log10(100));  // 2
+console.log(Math.log10(1000)); // 3
+```
+
+### Math.log2
+
+Returns base-2 logarithm.
+
+```javascript
+Math.log2(x: number): number
+```
+
+```javascript
+console.log(Math.log2(2));     // 1
+console.log(Math.log2(8));     // 3
+console.log(Math.log2(1024));  // 10
+```
+
+### Math.log1p
+
+Returns ln(1 + x).
+
+```javascript
+Math.log1p(x: number): number
+```
+
+```javascript
+console.log(Math.log1p(0));    // 0
+console.log(Math.log1p(1));    // 0.6931471805599453
+```
+
+## Trigonometric
+
+### Math.sin
+
+Returns sine.
+
+```javascript
+Math.sin(x: number): number
+```
+
+```javascript
+console.log(Math.sin(0));              // 0
+console.log(Math.sin(Math.PI / 2));    // 1
+console.log(Math.sin(Math.PI));        // ~0
+```
+
+### Math.cos
+
+Returns cosine.
+
+```javascript
+Math.cos(x: number): number
+```
+
+```javascript
+console.log(Math.cos(0));              // 1
+console.log(Math.cos(Math.PI / 2));    // ~0
+console.log(Math.cos(Math.PI));        // -1
+```
+
+### Math.tan
+
+Returns tangent.
+
+```javascript
+Math.tan(x: number): number
+```
+
+```javascript
+console.log(Math.tan(0));              // 0
+console.log(Math.tan(Math.PI / 4));    // ~1
+```
+
+### Math.asin
+
+Returns arcsine.
+
+```javascript
+Math.asin(x: number): number
+```
+
+```javascript
+console.log(Math.asin(0));     // 0
+console.log(Math.asin(1));     // 1.5707963267948966 (PI/2)
+console.log(Math.asin(-1));    // -1.5707963267948966
+```
+
+### Math.acos
+
+Returns arccosine.
+
+```javascript
+Math.acos(x: number): number
+```
+
+```javascript
+console.log(Math.acos(1));     // 0
+console.log(Math.acos(0));     // 1.5707963267948966 (PI/2)
+console.log(Math.acos(-1));    // 3.141592653589793 (PI)
+```
+
+### Math.atan
+
+Returns arctangent.
+
+```javascript
+Math.atan(x: number): number
+```
+
+```javascript
+console.log(Math.atan(0));     // 0
+console.log(Math.atan(1));     // 0.7853981633974483 (PI/4)
+```
+
+### Math.atan2
+
+Returns arctangent of quotient.
+
+```javascript
+Math.atan2(y: number, x: number): number
+```
+
+```javascript
+console.log(Math.atan2(1, 1));    // 0.7853981633974483 (PI/4)
+console.log(Math.atan2(1, 0));    // 1.5707963267948966 (PI/2)
+console.log(Math.atan2(0, -1));   // 3.141592653589793 (PI)
+```
+
+### Math.sinh
+
+Returns hyperbolic sine.
+
+```javascript
+Math.sinh(x: number): number
+```
+
+### Math.cosh
+
+Returns hyperbolic cosine.
+
+```javascript
+Math.cosh(x: number): number
+```
+
+### Math.tanh
+
+Returns hyperbolic tangent.
+
+```javascript
+Math.tanh(x: number): number
+```
+
+### Math.asinh
+
+Returns hyperbolic arcsine.
+
+```javascript
+Math.asinh(x: number): number
+```
+
+### Math.acosh
+
+Returns hyperbolic arccosine.
+
+```javascript
+Math.acosh(x: number): number
+```
+
+### Math.atanh
+
+Returns hyperbolic arctangent.
+
+```javascript
+Math.atanh(x: number): number
+```
+
+## Random
+
+### Math.random
+
+Returns a random number between 0 (inclusive) and 1 (exclusive).
+
+```javascript
+Math.random(): number
+```
+
+```javascript
+console.log(Math.random());  // e.g., 0.4536271829
+
+// Random integer between min and max (inclusive)
+function randomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+console.log(randomInt(1, 10));  // e.g., 7
+```
+
+## Bitwise Operations
+
+### Math.clz32
+
+Returns number of leading zero bits in 32-bit binary representation.
+
+```javascript
+Math.clz32(x: number): number
+```
+
+```javascript
+console.log(Math.clz32(1));        // 31
+console.log(Math.clz32(1000));     // 22
+console.log(Math.clz32(0));        // 32
+```
+
+### Math.imul
+
+Returns 32-bit integer multiplication.
+
+```javascript
+Math.imul(a: number, b: number): number
+```
+
+```javascript
+console.log(Math.imul(2, 4));      // 8
+console.log(Math.imul(0xffffffff, 5)); // -5
+```
+
+### Math.fround
+
+Returns nearest 32-bit float representation.
+
+```javascript
+Math.fround(x: number): number
+```
+
+```javascript
+console.log(Math.fround(1.5));     // 1.5
+console.log(Math.fround(1.337));   // 1.3370000123977661
+```
+
+## Usage Examples
+
+### Circle Calculations
+
+```javascript
+function circleArea(radius) {
+  return Math.PI * Math.pow(radius, 2);
+}
+
+function circleCircumference(radius) {
+  return 2 * Math.PI * radius;
+}
+
+console.log(circleArea(5));           // 78.53981633974483
+console.log(circleCircumference(5));  // 31.41592653589793
+```
+
+### Distance Calculation
+
+```javascript
+function distance(x1, y1, x2, y2) {
+  return Math.hypot(x2 - x1, y2 - y1);
+}
+
+console.log(distance(0, 0, 3, 4));  // 5
+```
+
+### Clamping Values
+
+```javascript
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+console.log(clamp(5, 0, 10));   // 5
+console.log(clamp(-5, 0, 10));  // 0
+console.log(clamp(15, 0, 10));  // 10
+```
+
+### Lerp (Linear Interpolation)
+
+```javascript
+function lerp(start, end, t) {
+  return start + (end - start) * t;
+}
+
+console.log(lerp(0, 100, 0.5));   // 50
+console.log(lerp(0, 100, 0.25));  // 25
+console.log(lerp(0, 100, 0.75));  // 75
+```
+
+## See Also
+
+- [Date Built-ins](/api/builtins/date) - Date calculations
+- [Global Functions](/api/builtins/globals) - parseInt, parseFloat, isNaN, isFinite

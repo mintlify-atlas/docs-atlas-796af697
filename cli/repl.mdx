@@ -1,0 +1,434 @@
+---
+title: REPL Mode
+description: Interactive Read-Eval-Print Loop for JavaScript
+---
+
+Porffor includes an interactive REPL (Read-Eval-Print Loop) for quick JavaScript experimentation and testing.
+
+## Usage
+
+Run `porf` without any arguments:
+
+```bash
+porf
+```
+
+## Examples
+
+<CodeGroup>
+```bash Start REPL
+$ porf
+Welcome to Porffor v0.61.10
+> 
+```
+
+```bash Basic expressions
+> 2 + 2
+4
+> Math.sqrt(16)
+4
+> 'hello'.toUpperCase()
+'HELLO'
+```
+
+```bash Variables
+> let x = 10
+undefined
+> x * 2
+20
+> const name = 'Porffor'
+undefined
+> name
+'Porffor'
+```
+</CodeGroup>
+
+## Features
+
+The REPL provides:
+
+<AccordionGroup>
+  <Accordion title="Interactive evaluation">
+    Type JavaScript expressions and see results immediately
+    
+    ```javascript
+    > 100 / 4
+    25
+    > [1, 2, 3].map(x => x * 2)
+    [2, 4, 6]
+    ```
+  </Accordion>
+  
+  <Accordion title="Multi-line input">
+    Write functions and complex expressions across multiple lines
+    
+    ```javascript
+    > function greet(name) {
+    ...   return `Hello, ${name}!`;
+    ... }
+    undefined
+    > greet('World')
+    'Hello, World!'
+    ```
+  </Accordion>
+  
+  <Accordion title="Variable persistence">
+    Variables remain available throughout the session
+    
+    ```javascript
+    > let counter = 0
+    undefined
+    > counter++
+    0
+    > counter++
+    1
+    > counter
+    2
+    ```
+  </Accordion>
+  
+  <Accordion title="Built-in commands">
+    Special REPL commands for convenience
+    
+    ```javascript
+    > .help      // Show help
+    > .clear     // Clear context
+    > .exit      // Exit REPL
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## REPL Commands
+
+<ParamField path=".help" type="command">
+  Show available REPL commands and help information
+  
+  ```javascript
+  > .help
+  ```
+</ParamField>
+
+<ParamField path=".clear" type="command">
+  Clear the REPL context (reset all variables and functions)
+  
+  ```javascript
+  > let x = 10
+  > x
+  10
+  > .clear
+  Clearing context...
+  > x
+  ReferenceError: x is not defined
+  ```
+</ParamField>
+
+<ParamField path=".exit" type="command">
+  Exit the REPL (same as Ctrl+D or Ctrl+C twice)
+  
+  ```javascript
+  > .exit
+  ```
+</ParamField>
+
+<ParamField path=".break" type="command">
+  Cancel current multi-line input
+  
+  ```javascript
+  > function incomplete() {
+  ... .break
+  >
+  ```
+</ParamField>
+
+## Keyboard Shortcuts
+
+<ParamField path="Ctrl+C" type="shortcut">
+  - Once: Cancel current line
+  - Twice: Exit REPL
+</ParamField>
+
+<ParamField path="Ctrl+D" type="shortcut">
+  Exit REPL (on empty line)
+</ParamField>
+
+<ParamField path="Up/Down Arrows" type="shortcut">
+  Navigate command history
+</ParamField>
+
+<ParamField path="Tab" type="shortcut">
+  Auto-completion (if supported)
+</ParamField>
+
+## Example Session
+
+<CodeGroup>
+```javascript Basic math
+$ porf
+> 5 + 3
+8
+> let radius = 10
+undefined
+> Math.PI * radius * radius
+314.1592653589793
+```
+
+```javascript Functions
+> function factorial(n) {
+...   if (n <= 1) return 1;
+...   return n * factorial(n - 1);
+... }
+undefined
+> factorial(5)
+120
+> factorial(10)
+3628800
+```
+
+```javascript Arrays and methods
+> const arr = [1, 2, 3, 4, 5]
+undefined
+> arr.map(x => x * x)
+[1, 4, 9, 16, 25]
+> arr.filter(x => x % 2 === 0)
+[2, 4]
+> arr.reduce((a, b) => a + b)
+15
+```
+
+```javascript Objects
+> const person = { name: 'Alice', age: 30 }
+undefined  
+> person.name
+'Alice'
+> person.greet = function() { return 'Hello, ' + this.name }
+[Function]
+> person.greet()
+'Hello, Alice'
+```
+</CodeGroup>
+
+## Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Quick Testing" icon="flask">
+    Test JavaScript expressions and functions quickly
+  </Card>
+  <Card title="Learning" icon="graduation-cap">
+    Explore JavaScript features and Porffor's capabilities
+  </Card>
+  <Card title="Debugging" icon="bug">
+    Test isolated pieces of code to debug issues
+  </Card>
+  <Card title="Prototyping" icon="lightbulb">
+    Experiment with algorithms before writing full scripts
+  </Card>
+</CardGroup>
+
+## Multi-line Input
+
+The REPL automatically detects incomplete expressions:
+
+```javascript
+> function add(a, b) {
+...   return a + b;
+... }
+undefined
+
+> if (true) {
+...   console.log('yes');
+... }
+yes
+undefined
+
+> const obj = {
+...   x: 1,
+...   y: 2
+... }
+undefined
+```
+
+## Output Display
+
+<CodeGroup>
+```javascript Values
+> 42
+42
+> 'hello'
+'hello'
+> true
+true
+```
+
+```javascript undefined
+> let x = 5
+undefined
+> console.log('hi')
+hi
+undefined
+```
+
+```javascript Objects/Arrays
+> [1, 2, 3]
+[1, 2, 3]
+> { a: 1, b: 2 }
+{ a: 1, b: 2 }
+```
+
+```javascript Errors
+> foo
+ReferenceError: foo is not defined
+> 1 / 0
+Infinity
+```
+</CodeGroup>
+
+## Implementation
+
+Porffor's REPL uses Node.js's built-in `node:repl` module, providing:
+
+- Standard REPL functionality
+- Command history
+- Tab completion (limited)
+- Multi-line editing
+- Syntax highlighting (terminal dependent)
+
+## Limitations
+
+<Warning>
+Porffor's REPL has the same limitations as regular Porffor execution:
+</Warning>
+
+- Limited async support (Promise/await bugs)
+- No variables between scopes (except args and globals)
+- No `eval()` or `Function()` (AOT compilation)
+- Limited standard library support
+
+## Troubleshooting
+
+### Unexpected behavior
+
+```javascript
+// Clear context and try again
+> .clear
+Clearing context...
+```
+
+### Exit not working
+
+```bash
+# Press Ctrl+C twice
+# Or press Ctrl+D on empty line
+# Or type .exit
+```
+
+### Multi-line input stuck
+
+```javascript
+// Use .break to cancel
+> function incomplete() {
+... .break
+>
+```
+
+## Comparison with Node.js REPL
+
+| Feature | Porffor REPL | Node.js REPL |
+|---------|-------------|-------------|
+| Basic evaluation | ✓ | ✓ |
+| Multi-line | ✓ | ✓ |
+| History | ✓ | ✓ |
+| Tab completion | Limited | ✓ |
+| Async/await | Limited | ✓ |
+| Full stdlib | ✗ | ✓ |
+| AOT compiled | ✓ | ✗ |
+| Fast startup | ✓ | ✓ |
+
+## Advanced Usage
+
+<CodeGroup>
+```javascript Test Porffor features
+> // Inline Wasm
+> Porffor.wasm.i32.add(5, 3)
+8
+```
+
+```javascript Explore types
+> Porffor.type('hello')
+'bytestring'
+> Porffor.type(42)
+'number'
+```
+
+```javascript Quick benchmarks
+> console.time('test')
+undefined
+> for (let i = 0; i < 1000000; i++) {}
+undefined  
+> console.timeEnd('test')
+test: 12.34ms
+undefined
+```
+</CodeGroup>
+
+## Tips
+
+<AccordionGroup>
+  <Accordion title="Paste code">
+    Paste multi-line code directly into REPL
+    
+    ```javascript
+    > function fibonacci(n) {
+    ...   if (n <= 1) return n;
+    ...   return fibonacci(n-1) + fibonacci(n-2);
+    ... }
+    ```
+  </Accordion>
+  
+  <Accordion title="Use history">
+    Arrow keys navigate previous commands
+    
+    - Up: Previous command
+    - Down: Next command
+  </Accordion>
+  
+  <Accordion title="Quick exit">
+    Fastest way to exit: Ctrl+D on empty line
+  </Accordion>
+  
+  <Accordion title="Clear on error">
+    If context gets messy, use `.clear`
+  </Accordion>
+</AccordionGroup>
+
+## Version Info
+
+Check Porffor version in REPL:
+
+```javascript
+> globalThis.version
+'0.61.10'
+```
+
+Or from command line:
+
+```bash
+porf --version
+porf -v
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Run Scripts" icon="play" href="/cli/run">
+    Execute JavaScript files
+  </Card>
+  <Card title="Profile Code" icon="chart-line" href="/cli/profile">
+    Analyze performance
+  </Card>
+  <Card title="Debug" icon="bug" href="/cli/debug">
+    Interactive debugging
+  </Card>
+  <Card title="Compile" icon="cube" href="/cli/wasm">
+    Build Wasm binaries
+  </Card>
+</CardGroup>

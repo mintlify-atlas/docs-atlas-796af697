@@ -1,0 +1,139 @@
+---
+title: Project Structure
+description: Understanding Porffor's codebase organization
+---
+
+Porffor's codebase is organized into several key directories. Understanding this structure will help you navigate and contribute effectively.
+
+## Repository Layout
+
+```
+porffor/
+├── compiler/          # The compiler itself
+│   ├── builtins/      # Built-in APIs written in TypeScript
+│   ├── *.js           # Compiler implementation files
+│   └── ...
+├── runtime/           # Runtime utilities
+├── test262/           # Test262 runner and utilities
+├── bench/             # Benchmark examples
+├── porf               # Unix CLI wrapper
+└── porf.cmd           # Windows CLI wrapper
+```
+
+## Compiler Directory
+
+The `compiler/` directory contains the core compiler implementation:
+
+### Built-ins (`compiler/builtins/`)
+
+Built-in APIs written in TypeScript that get precompiled. Key files:
+
+- `string.ts` - String and ByteString methods
+- `array.ts` - Array methods
+- `number.ts` - Number methods
+- `date.ts` - Date implementation
+- `math.ts` - Math functions
+- `console.ts` - Console methods
+- `regexp.ts` - Regular expression support
+- `object.ts` - Object methods
+- `json.ts` - JSON parsing/stringification
+- `promise.ts` - Promise implementation
+- And many more...
+
+### Compiler Implementation Files
+
+- **`index.js`** - Main entry point, orchestrates all compiler steps (code in → wasm out)
+- **`codegen.js`** - Code generation, AST → Wasm bytecode (the bulk of the work)
+- **`builtins.js`** - Manually written built-ins (spec, custom vars, funcs)
+- **`builtins_precompiled.js`** - Generated from `compiler/builtins/` folder
+- **`precompile.js`** - Tool to generate `builtins_precompiled.js`
+- **`assemble.js`** - Assembles Wasm ops and metadata into spec-compliant Wasm module
+- **`opt.js`** - Self-made Wasm bytecode optimizer
+- **`cyclone.js`** - Wasm partial constant evaluator (fast and dangerous)
+- **`havoc.js`** - Wasm rewrite library (wreaks havoc upon Wasm bytecode)
+- **`2c.js`** - Custom Wasm-to-C compiler
+- **`parse.js`** - Parser wrapper (uses Acorn or alternatives)
+- **`disassemble.js`** - Wasm disassembler using internal debug info
+- **`types.js`** - Definitions for builtin types
+- **`wasmSpec.js`** - "Enums" and info from Wasm spec
+- **`expression.js`** - Maps operators to opcodes
+- **`encoding.js`** - Utils for encoding as bytes for Wasm
+- **`wrap.js`** - Wrapper that instantiates and produces nice exports
+- **`prefs.js`** - Command line argument reader
+- **`pgo.js`** - Profile guided optimizer
+- **`prototype.js`** - Some builtin prototype functions (legacy)
+
+## Runtime Directory
+
+Utilities for running JS with the compiler:
+
+- **`index.js`** - Main runtime entry point (this is what you want to use)
+- **`repl.js`** - Basic REPL implementation (uses `node:repl`)
+
+## Test262 Directory
+
+Test262 runner and utilities for testing ECMAScript compliance:
+
+- **`index.js`** - Main test runner with multi-threading support
+- **`read.js`** - Test262 test file reader
+- **`harness.js`** - Test262 harness implementations
+- **`compare.js`** - Compare test results
+- **`history.json`** - Historical test results
+- **`test262/`** - Cloned Test262 repository (you need to clone this)
+
+## Bench Directory
+
+Contains example JavaScript files that work with Porffor. Good for:
+- Testing features
+- Performance benchmarking
+- Seeing what's supported
+
+## Key File Relationships
+
+### Built-in Development Flow
+
+1. You edit files in `compiler/builtins/*.ts`
+2. Run `./porf precompile` to compile them
+3. This generates `compiler/builtins_precompiled.js`
+4. The compiler uses this when compiling user code
+
+### Compilation Flow
+
+```
+User JS/TS Code
+  ↓
+parse.js (Acorn)
+  ↓
+codegen.js (AST → Wasm ops)
+  ↓
+opt.js (Optimization)
+  ↓
+assemble.js (Wasm module)
+  ↓
+Final Wasm Binary
+```
+
+## Where to Contribute
+
+For most contributors, the best place to start is:
+
+### `compiler/builtins/`
+
+This is the most accessible area for contributions:
+- Easier to understand than compiler internals
+- Clear scope (implementing specific APIs)
+- Direct impact on JavaScript compatibility
+- Examples to learn from in existing files
+
+### Other Areas
+
+More advanced contributions can be made to:
+- **Compiler** (`codegen.js`) - Core compilation logic
+- **Optimizer** (`opt.js`) - Wasm optimization passes
+- **Test262** - Test infrastructure improvements
+
+## Next Steps
+
+- Start [Writing Built-ins](/contributing/writing-builtins)
+- Learn about [Testing](/contributing/testing)
+- Review [Commit Style](/contributing/commit-style)

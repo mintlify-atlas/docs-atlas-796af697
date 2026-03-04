@@ -1,0 +1,349 @@
+---
+title: ByteString Utilities
+description: Optimized string operations for ASCII strings
+---
+
+The `Porffor.bytestring` API provides utilities for working with ByteStrings, Porffor's optimized internal string representation for ASCII text.
+
+## What are ByteStrings?
+
+ByteStrings are Porffor's optimization for strings containing only ASCII characters (0-127). Instead of storing each character as 2 bytes (UTF-16), ByteStrings store one byte per character, reducing memory usage by 50% for ASCII text.
+
+```javascript
+// Automatically stored as ByteString
+const ascii = 'Hello, World!';
+
+// Stored as regular String (UTF-16)
+const unicode = 'Hello, 世界!';
+
+// Check the type
+console.log(Porffor.type(ascii) === Porffor.TYPES.bytestring);  // true
+console.log(Porffor.type(unicode) === Porffor.TYPES.string);    // true
+```
+
+## appendStr
+
+Append one ByteString to another.
+
+```typescript
+Porffor.bytestring.appendStr(str: bytestring, appendage: bytestring): i32
+```
+
+<ParamField path="str" type="bytestring" required>
+  Base string
+</ParamField>
+
+<ParamField path="appendage" type="bytestring" required>
+  String to append
+</ParamField>
+
+<ResponseField name="return" type="i32">
+  Pointer to new concatenated ByteString
+</ResponseField>
+
+### Usage
+
+```javascript
+const base = 'Hello';
+const suffix = ', World!';
+const result = Porffor.bytestring.appendStr(base, suffix);
+console.log(result); // 'Hello, World!'
+```
+
+## appendChar
+
+Append a single character to a ByteString.
+
+```typescript
+Porffor.bytestring.appendChar(str: bytestring, char: i32): i32
+```
+
+<ParamField path="str" type="bytestring" required>
+  Base string
+</ParamField>
+
+<ParamField path="char" type="i32" required>
+  Character code to append (0-127)
+</ParamField>
+
+<ResponseField name="return" type="i32">
+  Pointer to new ByteString with character appended
+</ResponseField>
+
+### Usage
+
+```javascript
+const base = 'Hello';
+const result = Porffor.bytestring.appendChar(base, 33); // 33 = '!'
+console.log(result); // 'Hello!'
+```
+
+### Character Codes
+
+```javascript
+function appendExclamation(str) {
+  return Porffor.bytestring.appendChar(str, 33); // !
+}
+
+function appendNewline(str) {
+  return Porffor.bytestring.appendChar(str, 10); // \n
+}
+
+function appendSpace(str) {
+  return Porffor.bytestring.appendChar(str, 32); // (space)
+}
+```
+
+## append2Char
+
+Append two characters to a ByteString.
+
+```typescript
+Porffor.bytestring.append2Char(str: bytestring, char1: i32, char2: i32): i32
+```
+
+<ParamField path="str" type="bytestring" required>
+  Base string
+</ParamField>
+
+<ParamField path="char1" type="i32" required>
+  First character code to append
+</ParamField>
+
+<ParamField path="char2" type="i32" required>
+  Second character code to append
+</ParamField>
+
+<ResponseField name="return" type="i32">
+  Pointer to new ByteString with both characters appended
+</ResponseField>
+
+### Usage
+
+```javascript
+const base = 'Hello';
+const result = Porffor.bytestring.append2Char(base, 33, 33); // !!
+console.log(result); // 'Hello!!'
+```
+
+### Efficient Padding
+
+```javascript
+function appendTwoDigit(str, digit1, digit2) {
+  // Append two numeric characters
+  return Porffor.bytestring.append2Char(
+    str,
+    48 + digit1, // '0' + digit1
+    48 + digit2  // '0' + digit2
+  );
+}
+
+const time = 'Time: ';
+const result = appendTwoDigit(time, 1, 5);
+console.log(result); // 'Time: 15'
+```
+
+## appendPadNum
+
+Append a zero-padded number to a ByteString.
+
+```typescript
+Porffor.bytestring.appendPadNum(str: bytestring, num: number, len: number): i32
+```
+
+<ParamField path="str" type="bytestring" required>
+  Base string
+</ParamField>
+
+<ParamField path="num" type="number" required>
+  Number to append
+</ParamField>
+
+<ParamField path="len" type="number" required>
+  Minimum length (will pad with zeros if needed)
+</ParamField>
+
+<ResponseField name="return" type="i32">
+  Pointer to new ByteString with padded number appended
+</ResponseField>
+
+### Usage
+
+```javascript
+const base = 'ID: ';
+
+const result1 = Porffor.bytestring.appendPadNum(base, 5, 4);
+console.log(result1); // 'ID: 0005'
+
+const result2 = Porffor.bytestring.appendPadNum(base, 42, 4);
+console.log(result2); // 'ID: 0042'
+
+const result3 = Porffor.bytestring.appendPadNum(base, 1234, 4);
+console.log(result3); // 'ID: 1234'
+```
+
+### Date/Time Formatting
+
+```javascript
+function formatTime(hours, minutes, seconds) {
+  let result = '';
+  result = Porffor.bytestring.appendPadNum(result, hours, 2);
+  result = Porffor.bytestring.appendChar(result, 58); // ':'
+  result = Porffor.bytestring.appendPadNum(result, minutes, 2);
+  result = Porffor.bytestring.appendChar(result, 58); // ':'
+  result = Porffor.bytestring.appendPadNum(result, seconds, 2);
+  return result;
+}
+
+console.log(formatTime(9, 5, 7));   // '09:05:07'
+console.log(formatTime(14, 30, 45)); // '14:30:45'
+```
+
+### Zero-Padded IDs
+
+```javascript
+function generateID(prefix, num, width) {
+  return Porffor.bytestring.appendPadNum(prefix, num, width);
+}
+
+console.log(generateID('USER_', 1, 6));    // 'USER_000001'
+console.log(generateID('ORDER_', 42, 8));  // 'ORDER_00000042'
+console.log(generateID('ITEM_', 999, 5));  // 'ITEM_00999'
+```
+
+## Usage Examples
+
+### Building Complex Strings
+
+```javascript
+function buildLogEntry(level, message) {
+  const now = new Date();
+  
+  let result = '[';
+  result = Porffor.bytestring.appendPadNum(result, now.getHours(), 2);
+  result = Porffor.bytestring.appendChar(result, 58); // ':'
+  result = Porffor.bytestring.appendPadNum(result, now.getMinutes(), 2);
+  result = Porffor.bytestring.appendChar(result, 58); // ':'
+  result = Porffor.bytestring.appendPadNum(result, now.getSeconds(), 2);
+  result = Porffor.bytestring.appendStr(result, '] ');
+  result = Porffor.bytestring.appendStr(result, level);
+  result = Porffor.bytestring.appendStr(result, ': ');
+  result = Porffor.bytestring.appendStr(result, message);
+  
+  return result;
+}
+
+console.log(buildLogEntry('INFO', 'Server started'));
+// '[09:30:45] INFO: Server started'
+```
+
+### CSV Generation
+
+```javascript
+function toCSV(data) {
+  let csv = '';
+  
+  for (let row = 0; row < data.length; row++) {
+    for (let col = 0; col < data[row].length; col++) {
+      csv = Porffor.bytestring.appendStr(csv, String(data[row][col]));
+      
+      if (col < data[row].length - 1) {
+        csv = Porffor.bytestring.appendChar(csv, 44); // ','
+      }
+    }
+    csv = Porffor.bytestring.appendChar(csv, 10); // '\n'
+  }
+  
+  return csv;
+}
+
+const data = [
+  ['Name', 'Age', 'City'],
+  ['Alice', 30, 'NYC'],
+  ['Bob', 25, 'LA']
+];
+
+console.log(toCSV(data));
+// Name,Age,City
+// Alice,30,NYC
+// Bob,25,LA
+```
+
+### URL Building
+
+```javascript
+function buildURL(base, params) {
+  let url = base;
+  url = Porffor.bytestring.appendChar(url, 63); // '?'
+  
+  const keys = Object.keys(params);
+  for (let i = 0; i < keys.length; i++) {
+    if (i > 0) {
+      url = Porffor.bytestring.appendChar(url, 38); // '&'
+    }
+    
+    url = Porffor.bytestring.appendStr(url, keys[i]);
+    url = Porffor.bytestring.appendChar(url, 61); // '='
+    url = Porffor.bytestring.appendStr(url, String(params[keys[i]]));
+  }
+  
+  return url;
+}
+
+const url = buildURL('https://api.example.com/search', {
+  q: 'porffor',
+  limit: '10',
+  page: '1'
+});
+
+console.log(url);
+// 'https://api.example.com/search?q=porffor&limit=10&page=1'
+```
+
+## Performance Benefits
+
+ByteStrings offer significant performance improvements:
+
+```javascript
+// Memory usage comparison
+const str1 = 'Hello, World!'; // 13 chars * 1 byte = 13 bytes (+ 4 byte length)
+const str2 = 'Hello, World!'; // 13 chars * 2 bytes = 26 bytes (+ 4 byte length)
+// If str1 is ByteString: ~50% memory savings!
+
+// These operations are optimized for ByteStrings
+function benchmarkConcat(iterations) {
+  const start = performance.now();
+  
+  let result = '';
+  for (let i = 0; i < iterations; i++) {
+    result = Porffor.bytestring.appendStr(result, 'x');
+  }
+  
+  return performance.now() - start;
+}
+```
+
+## String vs ByteString
+
+```javascript
+function detectStringType(value) {
+  const t = Porffor.type(value);
+  
+  if (t === Porffor.TYPES.bytestring) {
+    return 'ByteString (ASCII only)';
+  } else if (t === Porffor.TYPES.string) {
+    return 'String (UTF-16)';
+  }
+  
+  return 'Not a string';
+}
+
+console.log(detectStringType('hello'));     // ByteString (ASCII only)
+console.log(detectStringType('hello 世界')); // String (UTF-16)
+```
+
+## See Also
+
+- [String Built-ins](/api/builtins/string) - Standard String methods
+- [Type Functions](/api/porffor/types) - Type checking for strings
+- [Porffor.wasm](/api/porffor/wasm) - Low-level string memory access

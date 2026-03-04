@@ -1,0 +1,234 @@
+---
+title: AOT Compilation
+description: Understanding Porffor's ahead-of-time compilation approach and how it differs from traditional JavaScript engines
+---
+
+Porffor uses a fundamentally different approach to executing JavaScript compared to traditional engines like V8 or SpiderMonkey. Instead of using a JIT (Just-In-Time) compiler or interpreter, Porffor is **100% AOT (Ahead-Of-Time) compiled**.
+
+## What is AOT Compilation?
+
+AOT compilation means that your JavaScript code is compiled entirely to WebAssembly (or native code) before execution, not during runtime. This is in contrast to:
+
+- **Interpreters**: Execute code line-by-line at runtime (slow but simple)
+- **JIT compilers**: Compile hot code paths during execution (fast after warmup)
+- **AOT compilers**: Compile everything before execution (fast from the start)
+
+<CodeGroup>
+```javascript Traditional JIT Engine
+// Code is parsed, interpreted initially,
+// then JIT-compiled during execution
+function fibonacci(n) {
+  if (n <= 1) return n;
+  return fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+// First few calls: interpreted (slow)
+// Later calls: JIT-compiled (fast)
+fibonacci(10);
+```
+
+```javascript Porffor AOT
+// Entire function compiled to Wasm before execution
+function fibonacci(n) {
+  if (n <= 1) return n;
+  return fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+// All calls: pre-compiled Wasm (fast)
+fibonacci(10);
+```
+</CodeGroup>
+
+## Key Characteristics
+
+### Zero Runtime/Preluded Code
+
+Porffor generates WebAssembly with **zero constant runtime** or preluded code. Every piece of code in the output is generated specifically for your program:
+
+<Check>Only the code you write and the builtins you use are included</Check>
+<Check>No heavy runtime library shipped with every program</Check>
+<Check>Minimal WebAssembly imports (only I/O operations)</Check>
+
+### Compilation Pipeline
+
+The AOT compilation process follows these steps:
+
+```mermaid
+graph LR
+    A[JavaScript/TypeScript] --> B[Parser: Acorn]
+    B --> C[AST]
+    C --> D[Code Generator]
+    D --> E[Wasm Bytecode]
+    E --> F[Optimizer]
+    F --> G[Assembler]
+    G --> H[Wasm Module]
+    H --> I[2c Compiler]
+    I --> J[Native Binary]
+```
+
+<Info>
+  The parser (Acorn) is the only external dependency. Everything else—from bytecode generation to final assembly—is built from scratch.
+</Info>
+
+## Compilation Targets
+
+Porffor's AOT approach enables multiple compilation targets:
+
+<CardGroup cols={2}>
+  <Card title="WebAssembly" icon="cube">
+    Compile to `.wasm` files for web or Wasm runtimes
+  </Card>
+  <Card title="Native Binaries" icon="microchip">
+    Compile to native executables via 2c (Wasm → C → binary)
+  </Card>
+  <Card title="C Source" icon="code">
+    Generate C code for maximum portability
+  </Card>
+  <Card title="Direct Execution" icon="bolt">
+    Run immediately via Porffor's runtime
+  </Card>
+</CardGroup>
+
+## Advantages
+
+### Predictable Performance
+
+Unlike JIT engines, performance doesn't vary based on warmup:
+
+<CodeGroup>
+```bash First run
+porf script.js
+# Fast from the start
+```
+
+```bash Subsequent runs
+porf script.js  
+# Same fast performance
+```
+</CodeGroup>
+
+### Small Output Size
+
+Without a runtime, compiled programs are remarkably small:
+
+```bash
+# Simple hello world
+porf wasm hello.js hello.wasm
+ls -lh hello.wasm
+# Output: ~200 bytes
+```
+
+### Security
+
+AOT compilation provides inherent security benefits:
+
+<Check>No dynamic code generation at runtime</Check>
+<Check>All code known and analyzed before execution</Check>
+<Check>Wasm's sandboxed environment</Check>
+<Check>Memory-safe compilation (JavaScript → Wasm)</Check>
+
+## Limitations
+
+### No Dynamic Code Execution
+
+Because everything is compiled ahead of time, dynamic code evaluation is impossible:
+
+```javascript
+// ❌ Not supported in Porffor
+eval('console.log("hello")');
+Function('return 42')();
+
+// ✅ Use direct code instead
+console.log("hello");
+const fn = () => 42;
+```
+
+### Limited Runtime Flexibility
+
+JIT engines can optimize based on runtime patterns. Porffor must make all decisions at compile time:
+
+- Type specialization happens at compile time (not runtime)
+- No dynamic recompilation based on usage patterns
+- Cannot adapt to changing execution patterns
+
+## Optimization Levels
+
+Porffor provides multiple optimization levels:
+
+<Tabs>
+  <Tab title="-O0">
+    ```bash
+    porf -O0 script.js
+    ```
+    Disables optimizations. Fastest compilation, larger output.
+  </Tab>
+  <Tab title="-O1 (default)">
+    ```bash
+    porf script.js
+    # or explicitly:
+    porf -O1 script.js
+    ```
+    Basic optimizations: instruction simplification, import tree-shaking.
+  </Tab>
+  <Tab title="-O2">
+    ```bash
+    porf -O2 script.js
+    ```
+    Advanced optimizations: partial evaluation. Experimental and unstable.
+  </Tab>
+</Tabs>
+
+### Type-Guided Optimization
+
+Use TypeScript annotations to help the compiler optimize:
+
+```typescript
+// Enable parsing and optimization with type annotations
+// porf --parse-types --opt-types script.ts
+
+function add(a: number, b: number): number {
+  return a + b;
+}
+
+// Compiler knows types, generates optimized Wasm
+```
+
+<Info>
+  Porffor doesn't type-check your code, but uses type annotations as **compiler hints** for better optimization.
+</Info>
+
+## Comparison with Other Engines
+
+| Feature | Porffor (AOT) | V8/SpiderMonkey (JIT) | QuickJS (Interpreter) |
+|---------|---------------|----------------------|----------------------|
+| **Startup time** | Instant | Slower (warmup) | Instant |
+| **Peak performance** | Good | Excellent | Poor |
+| **Binary size** | Tiny | Large | Medium |
+| **Memory usage** | Low | High | Medium |
+| **Dynamic eval** | ❌ | ✅ | ✅ |
+| **Predictability** | High | Low | High |
+
+## Performance Characteristics
+
+From the README:
+
+<Note>
+  *For the features it supports*, Porffor is **blazingly fast** compared to interpreters and engines without JIT. With JIT engines, Porffor can match or exceed performance with compiler arguments, typed input, and native compilation.
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Type System" href="/concepts/type-system" icon="diagram-project">
+    Learn about Porffor's type system and ByteStrings
+  </Card>
+  <Card title="Memory Model" href="/concepts/memory-model" icon="memory">
+    Understand memory management and pointers
+  </Card>
+  <Card title="Compiler Options" href="/config/compiler-options" icon="sliders">
+    Explore all compilation flags
+  </Card>
+  <Card title="Native Compilation" href="/guides/compiling-to-native" icon="binary">
+    Compile JavaScript to native executables
+  </Card>
+</CardGroup>

@@ -1,0 +1,297 @@
+---
+title: Optimization Levels
+description: Control optimization with -O flags
+---
+
+Porffor supports multiple optimization levels controlled by the `-O` flag, similar to traditional compilers like GCC and Clang.
+
+## Optimization Levels
+
+### -O0: No Optimization
+
+<ParamField path="-O0" type="flag">
+  Disable all optimizations.
+  
+  ```bash
+  porf -O0 script.js
+  ```
+  
+  When `-O0` is set, the optimizer immediately returns without performing any transformations.
+  
+  **Use cases:**
+  - Debugging compiled output
+  - Fastest compilation times
+  - Testing unoptimized code paths
+  
+  **Source reference:** `source/compiler/opt.js:8`
+</ParamField>
+
+### -O1: Basic Optimization (Default)
+
+<ParamField path="-O1" type="flag" default="true">
+  Enable basic optimizations. This is the default optimization level.
+  
+  ```bash
+  porf -O1 script.js
+  # or simply
+  porf script.js
+  ```
+  
+  **Optimizations performed:**
+  - Peephole optimizations (local.get/local.set consolidation)
+  - Constant folding
+  - Dead code elimination (unused blocks)
+  - Redundant conversion removal (i32→f64→i32, etc.)
+  - Type conversion optimization
+  - Instruction combining (local.set + local.get → local.tee)
+  
+  **Examples:**
+  
+  ```wasm
+  # Before optimization
+  local.set 0
+  local.get 0
+  
+  # After -O1
+  local.tee 0
+  ```
+  
+  ```wasm
+  # Before optimization
+  local.get 0
+  drop
+  
+  # After -O1
+  # (removed)
+  ```
+  
+  ```wasm
+  # Before optimization
+  i32.const 0
+  i32.eq
+  
+  # After -O1
+  i32.eqz
+  ```
+  
+  **Source reference:** `source/compiler/opt.js:1-248`
+</ParamField>
+
+### -O2: Advanced Optimization
+
+<ParamField path="-O2" type="flag">
+  Enable advanced optimizations. May be unstable.
+  
+  ```bash
+  porf -O2 script.js
+  ```
+  
+  **Includes all -O1 optimizations plus:**
+  - Cyclone optimizer (partial constant evaluation)
+  - More aggressive transformations
+  
+  When `-O2` is enabled, the Cyclone optimizer is automatically activated unless explicitly disabled.
+  
+  <Warning>
+  `-O2` enables experimental optimizations that may be unstable. Use with caution in production.
+  </Warning>
+  
+  **Source reference:** `source/compiler/index.js:88-91`
+</ParamField>
+
+### -O3: Maximum Optimization
+
+<ParamField path="-O3" type="flag">
+  Enable maximum optimizations (experimental).
+  
+  ```bash
+  porf -O3 script.js
+  ```
+  
+  Currently has similar behavior to `-O2`. Additional optimizations may be added in the future.
+  
+  **Source reference:** `source/runtime/index.js:47`
+</ParamField>
+
+## Cyclone Optimizer
+
+The Cyclone optimizer is Porffor's partial constant evaluator - it's fast and powerful (hence the name "cyclone").
+
+<ParamField path="--cyclone" type="flag">
+  Explicitly enable or disable the Cyclone optimizer.
+  
+  ```bash
+  # Enable Cyclone (automatically enabled with -O2)
+  porf --cyclone script.js
+  
+  # Disable Cyclone even with -O2
+  porf -O2 --no-cyclone script.js
+  ```
+  
+  **Cyclone performs:**
+  - Constant propagation and folding
+  - Dead local elimination
+  - Stack-based partial evaluation
+  - Control flow simplification
+  - Type-based optimizations
+  
+  **Source reference:** `source/compiler/cyclone.js:1-4`
+</ParamField>
+
+<ParamField path="--cyclone-log" type="flag">
+  Log Cyclone optimizer performance and results.
+  
+  ```bash
+  porf --cyclone --cyclone-log script.js
+  ```
+  
+  Displays:
+  - Per-function optimization results (ops before → after)
+  - Total optimization time
+  - Size difference in bytes
+  
+  **Source reference:** `source/compiler/index.js:132-147`
+</ParamField>
+
+## Profile-Guided Optimization
+
+<ParamField path="--pgo" type="flag">
+  Enable profile-guided optimization.
+  
+  ```bash
+  porf --pgo script.js
+  ```
+  
+  PGO runs the code to collect runtime profiling data, then uses that data to guide optimizations.
+  
+  **Source reference:** `source/compiler/index.js:93`
+</ParamField>
+
+<ParamField path="--pgo-log" type="flag">
+  Log PGO performance and results.
+  
+  ```bash
+  porf --pgo --pgo-log script.js
+  ```
+  
+  **Source reference:** `source/compiler/index.js:114-124`
+</ParamField>
+
+## Optimization Configuration
+
+### Wasm Optimization Runs
+
+<ParamField path="--opt-wasm-runs" type="number" default="2">
+  Number of optimization passes to run on each function.
+  
+  ```bash
+  porf --opt-wasm-runs=5 script.js
+  ```
+  
+  More runs can catch additional optimization opportunities but increase compilation time.
+  
+  **Source reference:** `source/compiler/opt.js:21`
+</ParamField>
+
+### Optimization Logging
+
+<ParamField path="--opt-log" type="flag">
+  Log individual optimizations as they're applied.
+  
+  ```bash
+  porf --opt-log script.js
+  ```
+  
+  Useful for debugging optimizer behavior and understanding what transformations are applied.
+  
+  **Source reference:** `source/compiler/opt.js:55`
+</ParamField>
+
+## Specific Optimizations
+
+### Unused Code Elimination
+
+<ParamField path="--opt-unused" type="boolean" default="true">
+  Remove unused code and variables.
+  
+  ```bash
+  porf --no-opt-unused script.js
+  ```
+</ParamField>
+
+### Fast Length
+
+<ParamField path="--fast-length" type="flag">
+  Non-compliant optimization to make `.length` property access faster.
+  
+  ```bash
+  porf --fast-length script.js
+  ```
+  
+  This assumes `.length` always returns a number without runtime type checking. This breaks spec compliance but can provide performance benefits.
+  
+  **Source reference:** `source/compiler/codegen.js:1887`
+</ParamField>
+
+### Type Optimizations
+
+<ParamField path="--opt-types" type="boolean" default="true">
+  Optimize based on type information.
+  
+  ```bash
+  porf --no-opt-types script.js
+  ```
+  
+  Enables type-guided optimizations throughout the compiler.
+</ParamField>
+
+<ParamField path="--rm-unused-types" type="boolean" default="true">
+  Remove unused type checking code.
+  
+  ```bash
+  porf --no-rm-unused-types script.js
+  ```
+</ParamField>
+
+## Comparison Table
+
+| Feature | -O0 | -O1 (default) | -O2 | -O3 |
+|---------|-----|---------------|-----|-----|
+| Peephole optimizations | ❌ | ✅ | ✅ | ✅ |
+| Constant folding | ❌ | ✅ | ✅ | ✅ |
+| Dead code elimination | ❌ | ✅ | ✅ | ✅ |
+| Cyclone optimizer | ❌ | ❌ | ✅ | ✅ |
+| Compile time | Fastest | Fast | Slower | Slower |
+| Output size | Largest | Smaller | Smallest | Smallest |
+| Stability | Stable | Stable | Experimental | Experimental |
+
+## Examples
+
+### Debug build (fast compilation)
+
+```bash
+porf -O0 -d script.js
+```
+
+### Production build (balanced)
+
+```bash
+porf -O1 script.js output.wasm
+```
+
+### Aggressive optimization
+
+```bash
+porf -O2 --pgo --wasm-opt script.js output.wasm
+```
+
+### Maximum optimization with logging
+
+```bash
+porf -O2 --cyclone-log --pgo-log --opt-log script.js
+```
+
+## See Also
+
+- [Compiler Options](/config/compiler-options) - All compiler flags
+- [TypeScript Support](/config/typescript-support) - Type-guided optimizations

@@ -1,0 +1,495 @@
+---
+title: WebAssembly Proposals
+description: Understanding the WebAssembly proposals Porffor uses and requires for compilation
+---
+
+Porffor intentionally uses only widely-implemented WebAssembly proposals to maximize compatibility across runtimes. Some proposals are required, while others are optional.
+
+<Note>
+  From `README.md:129-136`: Porffor does **not** use cutting-edge proposals like GC (Garbage Collection) to ensure it can run in as many places as possible.
+</Note>
+
+## Required Proposals
+
+These proposals are **mandatory** for running Porffor-compiled WebAssembly:
+
+### Multi-value
+
+<Warning>**Required**</Warning>
+
+Allows WebAssembly functions to return multiple values.
+
+#### Why It's Needed
+
+Porffor represents every value as a pair: `(value, type)`. Functions must return both:
+
+```javascript
+// JavaScript function
+function add(a, b) {
+  return a + b;
+}
+
+// Compiled Wasm signature (simplified)
+// Returns: (f64 result, i32 type)
+(func $add (param $a f64) (param $a_type i32) 
+           (param $b f64) (param $b_type i32)
+           (result f64) (result i32)
+  ;; ... implementation ...
+  ;; Push result value
+  ;; Push result type
+)
+```
+
+Without multi-value, this would be impossible—functions could only return a single value.
+
+#### Browser Support
+
+<Check>Chrome 85+ (2020)</Check>
+<Check>Firefox 78+ (2020)</Check>
+<Check>Safari 15+ (2021)</Check>
+<Check>Node.js 15+ (2020)</Check>
+
+#### Technical Details
+
+From `CONTRIBUTING.md:267-270`:
+
+```wasm
+;; Declare return type as multiple values
+returns i32 i32
+
+;; Function can now return two i32 values
+i32.const 42
+i32.const 1  ;; TYPES.number
+return
+```
+
+### Non-trapping Float-to-Int Conversions
+
+<Warning>**Required**</Warning>
+
+Provides safe float-to-integer conversion that never traps (throws).
+
+#### The Problem
+
+Standard Wasm float-to-int instructions trap on overflow:
+
+```wasm
+;; Standard (trapping) conversion
+f64.const 1e100  ;; Huge number
+i32.trunc_f64_s  ;; ❌ TRAPS! Number too large for i32
+```
+
+#### The Solution
+
+Saturating conversions clamp instead of trapping:
+
+```wasm
+;; Non-trapping (saturating) conversion  
+f64.const 1e100
+i32.trunc_sat_f64_s  ;; ✅ Returns i32::MAX (2147483647)
+
+f64.const -1e100  
+i32.trunc_sat_f64_s  ;; ✅ Returns i32::MIN (-2147483648)
+
+f64.const nan
+i32.trunc_sat_f64_s  ;; ✅ Returns 0
+```
+
+#### Usage in Porffor
+
+From `compiler/wasmSpec.js:228-231`:
+
+```javascript
+export const Opcodes = {
+  // ...
+  i32_trunc_sat_f64_s: [ 0xfc, 0x02 ],  // Signed
+  i32_trunc_sat_f64_u: [ 0xfc, 0x03 ],  // Unsigned
+  i64_trunc_sat_f64_s: [ 0xfc, 0x06 ],
+  i64_trunc_sat_f64_u: [ 0xfc, 0x07 ],
+};
+```
+
+Used extensively in `compiler/codegen.js` for type conversions:
+
+```javascript
+// From codegen.js:291
+Opcodes.i32_trunc_sat_f64_s,
+
+// From codegen.js:7559-7560  
+Opcodes.i32_to = valtypeBinary === Valtype.i32 ? [] : Opcodes.i32_trunc_sat_f64_s;
+Opcodes.i32_to_u = valtypeBinary === Valtype.i32 ? [] : Opcodes.i32_trunc_sat_f64_u;
+```
+
+#### Browser Support
+
+<Check>Chrome 75+ (2019)</Check>
+<Check>Firefox 65+ (2019)</Check>
+<Check>Safari 15+ (2021)</Check>
+<Check>Node.js 12+ (2019)</Check>
+
+## Optional Proposals
+
+These proposals enhance functionality but aren't strictly required:
+
+### Bulk Memory Operations
+
+<Info>**Optional** - Graceful degradation possible</Info>
+
+Provides efficient memory operations for copying and filling.
+
+#### Instructions
+
+From `compiler/wasmSpec.js:233-235`:
+
+```javascript
+export const Opcodes = {
+  memory_init: [ 0xfc, 0x08 ],  // Copy from data segment
+  data_drop: [ 0xfc, 0x09 ],    // Drop data segment
+  memory_copy: [ 0xfc, 0x0a ],  // Copy memory region
+};
+```
+
+#### memory.copy Example
+
+From `compiler/builtins.js:1027`:
+
+```wasm
+;; Copy bytes from source to destination
+memory.copy
+  (i32.const $dest)   ;; Destination pointer
+  (i32.const $src)    ;; Source pointer
+  (i32.const $size)   ;; Number of bytes
+```
+
+Without bulk memory, Porffor falls back to byte-by-byte copying:
+
+<CodeGroup>
+```wasm With Bulk Memory (Fast)
+memory.copy
+  local.get $dest
+  local.get $src  
+  i32.const 1000  ;; Copy 1000 bytes instantly
+```
+
+```wasm Without Bulk Memory (Slow)
+local.get $dest
+local.set $dest_ptr
+local.get $src
+local.set $src_ptr
+
+(loop $copy_loop
+  ;; Load byte from source
+  local.get $src_ptr
+  i32.load8_u
+  
+  ;; Store byte to destination
+  local.get $dest_ptr
+  i32.store8
+  
+  ;; Increment pointers
+  local.get $src_ptr
+  i32.const 1
+  i32.add
+  local.set $src_ptr
+  
+  local.get $dest_ptr
+  i32.const 1
+  i32.add
+  local.set $dest_ptr
+  
+  ;; Loop 1000 times
+  br $copy_loop
+)
+```
+</CodeGroup>
+
+<Info>
+  Bulk memory operations are typically **10-100× faster** than loops for large copies.
+</Info>
+
+#### Browser Support
+
+<Check>Chrome 75+ (2019)</Check>
+<Check>Firefox 79+ (2020)</Check>
+<Check>Safari 15+ (2021)</Check>
+<Check>Node.js 12.5+ (2019)</Check>
+
+### Exception Handling
+
+<Info>**Optional** - Only for errors</Info>
+
+Provides structured exception handling with try/catch.
+
+#### Opcodes
+
+From `compiler/wasmSpec.js:69-74`:
+
+```javascript
+export const Opcodes = {
+  try: 0x06,
+  catch: 0x07,
+  catch_all: 0x19,
+  delegate: 0x18,
+  throw: 0x08,
+  rethrow: 0x09,
+};
+```
+
+#### Exception Modes
+
+Porffor supports two exception modes:
+
+<Tabs>
+  <Tab title="Stack Mode (Default)">
+    ```bash
+    porf script.js
+    # Uses stack-based exceptions
+    ```
+    
+    Exceptions carry the full error object on the stack:
+    
+    ```javascript
+    throw new TypeError("Invalid argument");
+    // Stack contains: (error_object, error_type)
+    ```
+    
+    From `compiler/codegen.js:5470`:
+    ```javascript
+    params: [ valtypeBinary, Valtype.i32 ]  // (value, type)
+    ```
+  </Tab>
+  <Tab title="LUT Mode">
+    ```bash
+    porf --exception-mode=lut script.js
+    ```
+    
+    Exceptions use a lookup table (LUT) for messages:
+    
+    ```javascript
+    throw new TypeError("Invalid argument");
+    // Stack contains: (exception_id)
+    // Message retrieved from LUT
+    ```
+    
+    From `compiler/codegen.js:5503-5518`:
+    ```javascript
+    let exceptId = exceptions.findIndex(x => 
+      x.constructor === constructor && x.message === message
+    );
+    if (exceptId === -1) {
+      exceptId = exceptions.push({ constructor, message }) - 1;
+    }
+    ```
+    
+    <Info>Smaller code size but requires exception handling support</Info>
+  </Tab>
+</Tabs>
+
+#### Usage Example
+
+```javascript
+try {
+  throw new Error("Something went wrong");
+} catch (e) {
+  console.log(e.message);
+}
+```
+
+Compiles to:
+
+```wasm
+(try
+  ;; Code that might throw
+  (throw $error_tag (i32.const 0))  ;; Exception ID 0
+(catch $error_tag
+  ;; Handle exception
+  ;; Stack has exception data
+)
+)
+```
+
+#### Browser Support
+
+<Warning>Limited support - newest proposal used by Porffor</Warning>
+
+<Check>Chrome 95+ (2021)</Check>
+<Check>Firefox 100+ (2022)</Check>
+<X>Safari - Not yet supported</X>
+<Check>Node.js 17+ (2021)</Check>
+
+Without exception handling:
+- Uncaught errors will crash the Wasm instance
+- No stack traces for errors
+- try/catch blocks won't work
+
+### Tail Calls
+
+<Info>**Opt-in** - Disabled by default</Info>
+
+Enables tail call optimization to prevent stack overflow in recursive functions.
+
+#### Enabling Tail Calls
+
+```bash
+porf --tail-call script.js
+```
+
+<Warning>
+  From `compiler/opt.js:11`: The tail call proposal is **not widely implemented**! Only enable if you know your target runtime supports it.
+</Warning>
+
+#### How It Works
+
+Without tail calls:
+
+```javascript
+function factorial(n, acc = 1) {
+  if (n <= 1) return acc;
+  return factorial(n - 1, n * acc);  // ❌ Grows stack
+}
+
+factorial(10000);  // Stack overflow!
+```
+
+With tail calls:
+
+```javascript
+function factorial(n, acc = 1) {
+  if (n <= 1) return acc;
+  return factorial(n - 1, n * acc);  // ✅ Reuses stack frame
+}
+
+factorial(10000);  // Works fine!
+```
+
+The compiler transforms the call into a `return_call` instruction:
+
+```wasm
+;; Without tail calls
+(call $factorial)    ;; Pushes new stack frame
+(return)
+
+;; With tail calls (opt.js:204-214)
+(return_call $factorial)  ;; Reuses current stack frame
+```
+
+#### Browser Support
+
+<Warning>Very limited support</Warning>
+
+<Check>Chrome 112+ (2023) - Behind flag</Check>
+<X>Firefox - Not yet supported</X>
+<X>Safari - Not yet supported</X>
+<Check>Node.js 20+ (2023) - Behind flag</Check>
+
+#### Performance Impact
+
+From `compiler/opt.js:211-214`:
+
+```javascript
+if (Prefs.optLog) log('opt', `tail called return, call`);
+```
+
+With tail calls enabled, the optimizer can convert:
+- Regular `call` + `return` → `return_call` (saves stack)
+- Regular `call_indirect` + `return` → `return_call_indirect`
+
+## Proposals NOT Used
+
+Porffor intentionally **avoids** newer proposals for compatibility:
+
+<CardGroup cols={2}>
+  <Card title="GC Proposal" icon="trash">
+    **Not used** - Would enable automatic garbage collection but has limited runtime support.
+  </Card>
+  <Card title="Threads" icon="gears">
+    **Not used** - SharedArrayBuffer support exists but no thread management.
+  </Card>
+  <Card title="SIMD (partial)" icon="table-cells">
+    **Minimal use** - Some SIMD operations defined but not heavily used.
+  </Card>
+  <Card title="Reference Types" icon="link">
+    **Limited use** - funcref and externref defined but not core to compilation.
+  </Card>
+</CardGroup>
+
+## Checking Runtime Support
+
+You can check if a runtime supports required proposals:
+
+```javascript
+// Check for multi-value support
+const multiValue = WebAssembly.validate(
+  new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, /* ... */])
+);
+
+// Check for non-trapping conversions
+const nonTrapping = typeof WebAssembly.Module.imports !== 'undefined';
+
+// Check for bulk memory
+const bulkMemory = WebAssembly.validate(
+  new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, /* ... */])
+);
+```
+
+Or check Node.js version:
+
+```bash
+node --version
+# v15.0.0 or higher = all required proposals ✅
+# v12.0.0 - v14.x = missing multi-value ❌
+```
+
+## Summary Table
+
+| Proposal | Status | Since | Used For | Fallback |
+|----------|--------|-------|----------|----------|
+| **Multi-value** | Required | 2020 | Function returns (value, type) | None |
+| **Non-trapping f2i** | Required | 2019 | Safe type conversions | None |
+| **Bulk memory** | Optional | 2020 | Fast memory copy/fill | Byte loops |
+| **Exception handling** | Optional | 2021 | try/catch blocks | Crash on error |
+| **Tail calls** | Opt-in | 2023 | Recursive optimization | Stack overflow |
+
+## Minimum Runtime Versions
+
+To run Porffor-compiled Wasm:
+
+<CardGroup cols={2}>
+  <Card title="Chrome" icon="chrome">
+    **Version 85+** (August 2020)
+    
+    All required proposals supported.
+  </Card>
+  <Card title="Firefox" icon="firefox">
+    **Version 79+** (July 2020)
+    
+    All required + bulk memory.
+  </Card>
+  <Card title="Safari" icon="safari">
+    **Version 15+** (September 2021)
+    
+    Required proposals only. No exception handling yet.
+  </Card>
+  <Card title="Node.js" icon="node">
+    **Version 15+** (October 2020)
+    
+    Recommended: v20+ for best support.
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Memory Model" href="/concepts/memory-model" icon="memory">
+    See how bulk memory operations work
+  </Card>
+  <Card title="AOT Compilation" href="/concepts/aot-compilation" icon="gears">
+    Understand the compilation process
+  </Card>
+  <Card title="Debugging" href="/guides/debugging" icon="bug">
+    Debug compiled code
+  </Card>
+  <Card title="Compiler Options" href="/config/compiler-options" icon="sliders">
+    Configure exception handling and other features
+  </Card>
+</CardGroup>

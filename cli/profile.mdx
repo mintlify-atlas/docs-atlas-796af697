@@ -1,0 +1,396 @@
+---
+title: porf profile
+description: View detailed function-by-function performance analysis
+---
+
+Profile JavaScript code to analyze performance bottlenecks with detailed function-level metrics and interactive visualizations.
+
+<Warning>
+Experimental WIP feature - functionality may change
+</Warning>
+
+## Usage
+
+```bash
+porf profile [flags] script.js [title]
+```
+
+## Examples
+
+<CodeGroup>
+```bash Basic profiling
+porf profile script.js
+```
+
+```bash Custom title
+porf profile benchmark.js "My Benchmark"
+```
+
+```bash With optimization
+porf profile -O3 script.js
+```
+</CodeGroup>
+
+## Arguments
+
+<ParamField path="script.js" type="string" required>
+  JavaScript file to profile
+</ParamField>
+
+<ParamField path="title" type="string">
+  Custom title for the profile report (defaults to filename)
+  
+  ```bash
+  porf profile benchmark.js "Sorting Algorithm Comparison"
+  ```
+</ParamField>
+
+## How It Works
+
+The profiler:
+
+1. **Instruments code**: Injects profiling hooks around function calls
+2. **Executes**: Runs your code while collecting timing data
+3. **Processes**: Analyzes performance metrics and builds visualizations
+4. **Uploads**: Sends data to profile.porffor.dev
+5. **Displays URL**: Provides link to interactive web report
+
+## Output
+
+<CodeGroup>
+```bash Profiling session
+$ porf profile benchmark.js
+Compiling...
+Starting execution...
+Running... Samples: 15234
+Execution finished in 1234.56ms
+Processing 15234 raw samples...
+Filtered out 127 samples shorter than 0.01ms.
+Building hierarchy from 15107 samples...
+uploading...
+https://profile.porffor.dev/abc123def456
+```
+
+```bash Output
+Compiling...
+Starting execution...
+Running... Samples: 42
+Execution finished in 45.23ms  
+Processing 42 raw samples...
+Filtered out 3 samples shorter than 0.01ms.
+Building hierarchy from 39 samples...
+uploading...
+https://profile.porffor.dev/xyz789
+```
+</CodeGroup>
+
+## Profile Report
+
+The generated URL opens an interactive web page with:
+
+### Flame Graph
+
+Visualizes the call stack and time spent in each function:
+- **Width**: Time spent in function (wider = more time)
+- **Height**: Call stack depth
+- **Color**: Differentiates between functions
+- **Interactive**: Click to zoom, hover for details
+
+### Bar Chart
+
+Shows top 50 functions by total time:
+- Total time spent
+- Average time per call
+- Minimum time
+- Maximum time
+- Call count
+
+### Metadata
+
+Profile information:
+- Porffor version
+- Runtime environment (Node.js version, browser)
+- Execution date/time
+- Total duration
+- Sample count
+
+## Profiling Options
+
+<ParamField path="-On" type="flag">
+  Optimization level affects profile results
+  
+  ```bash
+  # Profile unoptimized code
+  porf profile -O0 script.js
+  
+  # Profile optimized code (more realistic)
+  porf profile -O3 script.js
+  ```
+</ParamField>
+
+<ParamField path="--parse-types" type="flag">
+  Enable TypeScript parsing
+  
+  ```bash
+  porf profile --parse-types script.ts
+  ```
+</ParamField>
+
+## Sample Filtering
+
+The profiler filters very short samples:
+
+- **Threshold**: 0.01ms (configurable in source)
+- **Reason**: Reduce noise and improve visualization clarity
+- **Impact**: Ultra-fast function calls may not appear in flame graph but are counted in statistics
+
+## Understanding Results
+
+### Flame Graph Patterns
+
+<AccordionGroup>
+  <Accordion title="Wide bars">
+    Functions taking significant time - optimization candidates
+  </Accordion>
+  
+  <Accordion title="Deep stacks">
+    Many nested function calls - potential recursion or deep call chains
+  </Accordion>
+  
+  <Accordion title="Multiple children">
+    Function calling many sub-functions - coordination overhead
+  </Accordion>
+  
+  <Accordion title="Flat stacks">
+    Most time in single function - optimize this function directly
+  </Accordion>
+</AccordionGroup>
+
+### Bar Chart Metrics
+
+<ParamField path="Total Time" type="metric">
+  Cumulative time across all calls to this function
+</ParamField>
+
+<ParamField path="Average Time" type="metric">
+  Mean time per function call
+</ParamField>
+
+<ParamField path="Min/Max Time" type="metric">
+  Fastest and slowest individual calls
+</ParamField>
+
+<ParamField path="Count" type="metric">
+  Number of times function was called
+</ParamField>
+
+## Example Workflow
+
+<Steps>
+  <Step title="Write code to profile">
+    ```javascript benchmark.js
+    function fibonacci(n) {
+      if (n <= 1) return n;
+      return fibonacci(n - 1) + fibonacci(n - 2);
+    }
+    
+    function run() {
+      for (let i = 0; i < 30; i++) {
+        fibonacci(i);
+      }
+    }
+    
+    run();
+    ```
+  </Step>
+  
+  <Step title="Run profiler">
+    ```bash
+    porf profile benchmark.js "Fibonacci Benchmark"
+    ```
+  </Step>
+  
+  <Step title="Open profile URL">
+    Click the generated URL to view interactive results
+  </Step>
+  
+  <Step title="Analyze bottlenecks">
+    - Identify hot functions in flame graph
+    - Check bar chart for most time-consuming functions
+    - Note call counts and average times
+  </Step>
+  
+  <Step title="Optimize">
+    Make code changes based on insights
+  </Step>
+  
+  <Step title="Re-profile">
+    Compare new profile to measure improvements
+  </Step>
+</Steps>
+
+## Progress Indicator
+
+While running, the profiler shows a spinner with sample count:
+
+```
+Running... Samples: 1523
+```
+
+Updates every 500ms during execution.
+
+## Internal Functions
+
+Internal Porffor functions are marked differently in visualizations:
+
+- Compiler-generated functions
+- Built-in functions
+- Runtime helpers
+
+These can be identified in the flame graph to distinguish your code from internal operations.
+
+## Performance Impact
+
+Profiling adds overhead:
+
+- Function call instrumentation
+- Timing measurements
+- Sample collection
+
+Typical overhead: 2-10x slower execution
+
+<Note>
+Profile results show relative performance, not absolute runtime. Use for optimization guidance, not production benchmarking.
+</Note>
+
+## Optimization Tips
+
+Based on profile results:
+
+<AccordionGroup>
+  <Accordion title="Hot functions (wide flame bars)">
+    - Optimize algorithm complexity
+    - Reduce redundant calculations
+    - Consider caching results
+  </Accordion>
+  
+  <Accordion title="Many small calls (deep stacks)">
+    - Reduce function call overhead
+    - Inline small functions
+    - Batch operations
+  </Accordion>
+  
+  <Accordion title="High call counts">
+    - Reduce loop iterations
+    - Combine multiple calls
+    - Use more efficient data structures
+  </Accordion>
+  
+  <Accordion title="High max time variance">
+    - Investigate worst-case inputs
+    - Optimize edge cases
+    - Add fast paths
+  </Accordion>
+</AccordionGroup>
+
+## Sharing Profiles
+
+Profile URLs are public and shareable:
+
+```bash
+# Profile is uploaded to:
+https://profile.porffor.dev/<unique-id>
+
+# Share this URL with team members
+```
+
+## Comparison Workflow
+
+```bash
+# Before optimization
+porf profile script.js "Before optimization"
+# https://profile.porffor.dev/abc123
+
+# After optimization
+porf profile script.js "After optimization" 
+# https://profile.porffor.dev/def456
+
+# Compare both profiles side-by-side
+```
+
+## Limitations
+
+- Only profiles function calls (not individual lines)
+- Adds execution overhead
+- Requires internet connection (uploads to profile.porffor.dev)
+- Short-lived functions (less than 0.01ms) may be filtered
+- Experimental feature, may have bugs
+
+## Privacy
+
+Profile data includes:
+- Function names
+- Timing information
+- Call counts
+- System information (Porffor version, runtime)
+- Custom title
+
+**Does NOT include**:
+- Function source code
+- Variable values
+- Personal information
+
+## Advanced Usage
+
+<CodeGroup>
+```bash Profile optimized code
+porf profile -O3 --opt-types script.ts "Optimized version"
+```
+
+```bash Profile specific optimization
+porf profile --cyclone script.js "With Cyclone"
+porf profile script.js "Without Cyclone"
+```
+
+```bash Compare parsers
+porf profile --parser=acorn script.js "Acorn"
+porf profile --parser=@babel/parser script.js "Babel"
+```
+</CodeGroup>
+
+## Troubleshooting
+
+### No samples collected
+
+- Script may not have any function calls
+- Execution too fast
+- Try more complex code
+
+### Upload failed
+
+- Check internet connection
+- Verify profile.porffor.dev is accessible
+- Try again later
+
+### Unexpected results
+
+- Profile with different optimization levels
+- Compare with manual timing using `console.time()`
+- Report issues on GitHub
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Optimize Code" icon="gauge-high" href="/cli/run">
+    Apply insights and re-run
+  </Card>
+  <Card title="Debug Issues" icon="bug" href="/cli/debug">
+    Interactive debugging
+  </Card>
+  <Card title="Compile Optimized" icon="microchip" href="/cli/native">
+    Build native binary with optimizations
+  </Card>
+  <Card title="Understanding Optimization" icon="book" href="/cli/overview">
+    Learn about optimization flags
+  </Card>
+</CardGroup>

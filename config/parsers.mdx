@@ -1,0 +1,294 @@
+---
+title: Parser Options
+description: Choose and configure JavaScript/TypeScript parsers
+---
+
+Porffor supports multiple JavaScript and TypeScript parsers, allowing you to choose the best parser for your use case.
+
+## Supported Parsers
+
+Porffor can use any of the following parsers:
+
+- **acorn** - Default for JavaScript
+- **@babel/parser** - Default for TypeScript, full feature support
+- **meriyah** - Fast, spec-compliant parser
+- **hermes-parser** - Parser from Hermes JavaScript engine
+- **oxc-parser** - Oxidation Compiler parser (Rust-based)
+
+## Parser Selection
+
+<ParamField path="--parser" type="string" default="acorn | @babel/parser">
+  Select which parser to use for parsing JavaScript/TypeScript.
+  
+  ```bash
+  # Use meriyah parser
+  porf --parser=meriyah script.js
+  
+  # Use Babel parser
+  porf --parser=@babel/parser script.js
+  
+  # Use oxc parser
+  porf --parser=oxc-parser script.js
+  ```
+  
+  **Default behavior:**
+  - JavaScript files: `acorn`
+  - TypeScript files: `@babel/parser`
+  
+  **Source reference:** `source/compiler/parse.js:9-25`
+</ParamField>
+
+## Parser Details
+
+### Acorn (Default for JS)
+
+```bash
+porf --parser=acorn script.js
+```
+
+**Features:**
+- Lightweight and fast
+- Good for standard JavaScript
+- Default for `.js` files
+
+**Parser options:**
+```javascript
+{
+  ecmaVersion: 'latest',
+  sourceType: 'script' | 'module',
+  locations: false,
+  ranges: false,
+  tokens: false,
+  comments: false,
+  preserveParens: false
+}
+```
+
+**Source reference:** `source/compiler/parse.js:31-33`
+
+### @babel/parser (Default for TypeScript)
+
+```bash
+porf --parser=@babel/parser script.ts
+```
+
+**Features:**
+- Full TypeScript support
+- Supports type annotations
+- Required for `--parse-types`
+- Default for `.ts` files
+
+**Parser options:**
+```javascript
+{
+  plugins: ['estree', 'typescript'], // or just ['estree'] for JS
+  sourceType: 'script' | 'module',
+  locations: false,
+  ranges: false,
+  tokens: false,
+  comments: false,
+  preserveParens: false
+}
+```
+
+**Source reference:** `source/compiler/parse.js:42`
+
+### Meriyah
+
+```bash
+porf --parser=meriyah script.js
+```
+
+**Features:**
+- Fast, spec-compliant ECMAScript parser
+- Good performance
+- Supports modern JavaScript features
+
+**Parser options:**
+```javascript
+{
+  next: true,
+  module: true,
+  webcompat: true,
+  raw: true,
+  sourceType: 'script' | 'module'
+}
+```
+
+**Source reference:** `source/compiler/parse.js:35-39`
+
+### Hermes Parser
+
+```bash
+porf --parser=hermes-parser script.ts
+```
+
+**Features:**
+- From the Hermes JavaScript engine
+- Supports TypeScript
+- Compatible with React Native
+
+### OXC Parser
+
+```bash
+porf --parser=oxc-parser script.ts
+```
+
+**Features:**
+- Rust-based parser (fast)
+- Supports TypeScript
+- Part of the Oxidation Compiler project
+
+**Parser options:**
+```javascript
+{
+  lang: 'js' | 'ts',
+  showSemanticErrors: true
+}
+```
+
+**Source reference:** `source/compiler/parse.js:52-54`
+
+## TypeScript-Compatible Parsers
+
+Only certain parsers support TypeScript syntax:
+
+<CodeGroup>
+```bash Supported
+porf --parser=@babel/parser script.ts    # ✅ Recommended
+porf --parser=hermes-parser script.ts    # ✅ Supported
+porf --parser=oxc-parser script.ts       # ✅ Supported
+```
+
+```bash Not Supported
+porf --parser=acorn script.ts     # ❌ No TypeScript support
+porf --parser=meriyah script.ts   # ❌ No TypeScript support
+```
+</CodeGroup>
+
+<Warning>
+If you use `--parse-types` with a parser that doesn't support TypeScript, you'll receive a warning:
+
+```
+passed -parse-types with a parser (acorn) which does not support
+```
+
+**Source reference:** `source/compiler/parse.js:27`
+</Warning>
+
+## Force TypeScript Parsing
+
+<ParamField path="-t" type="flag">
+  Force parsing input as TypeScript, regardless of file extension.
+  
+  ```bash
+  porf -t script.js  # Parse .js file as TypeScript
+  ```
+  
+  Automatically uses `@babel/parser` when enabled.
+  
+  **Source reference:** `source/compiler/parse.js:6`
+</ParamField>
+
+## Module vs Script
+
+Control whether code is parsed as an ES module or a script:
+
+<ParamField path="--module" type="flag">
+  Parse input as an ES module.
+  
+  ```bash
+  porf --module script.js
+  ```
+  
+  Affects the `sourceType` option passed to all parsers.
+  
+  **Differences:**
+  - **Module**: Supports `import`/`export`, strict mode by default
+  - **Script**: Traditional JavaScript, no imports
+  
+  **Source reference:** `source/compiler/parse.js:37, 45`
+</ParamField>
+
+## Parser Compatibility Matrix
+
+| Parser | JavaScript | TypeScript | Speed | Notes |
+|--------|------------|------------|-------|-------|
+| acorn | ✅ | ❌ | Fast | Default for JS |
+| @babel/parser | ✅ | ✅ | Medium | Default for TS, most features |
+| meriyah | ✅ | ❌ | Fast | Spec-compliant |
+| hermes-parser | ✅ | ✅ | Fast | From Hermes engine |
+| oxc-parser | ✅ | ✅ | Very Fast | Rust-based |
+
+## Internal Parser Usage
+
+The parser is loaded dynamically at startup:
+
+```javascript
+const loadParser = async (fallbackParser = 'acorn', forceParser) => {
+  parser = forceParser ?? Prefs.parser ?? fallbackParser;
+  const mod = await import(parser);
+  parse = mod.parseSync ?? mod.parse;
+};
+```
+
+**Source reference:** `source/compiler/parse.js:18-23`
+
+## Temporal Detection
+
+All parsers support automatic Temporal API detection:
+
+```javascript
+if (input.includes('Temporal')) ast._usesTemporal = true;
+```
+
+This loose matching enables Temporal polyfill support when needed.
+
+**Source reference:** `source/compiler/parse.js:61`
+
+## Examples
+
+### Use fastest parser for production
+
+```bash
+porf --parser=oxc-parser script.js
+```
+
+### Parse JavaScript with Babel
+
+```bash
+porf --parser=@babel/parser script.js
+```
+
+### TypeScript with Hermes
+
+```bash
+porf --parser=hermes-parser app.ts
+```
+
+### Force TypeScript parsing with specific parser
+
+```bash
+porf -t --parser=oxc-parser script.js
+```
+
+## Error Handling
+
+All parser errors are normalized to `SyntaxError`:
+
+```javascript
+try {
+  let ast = parse(input, options);
+  if (ast.program) ast = ast.program;
+  return ast;
+} catch (e) {
+  throw new SyntaxError(e.message, { cause: e });
+}
+```
+
+**Source reference:** `source/compiler/parse.js:64-67`
+
+## See Also
+
+- [TypeScript Support](/config/typescript-support) - TypeScript-specific features
+- [Compiler Options](/config/compiler-options) - All compiler flags

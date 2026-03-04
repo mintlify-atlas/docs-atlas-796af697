@@ -1,0 +1,498 @@
+---
+title: Object Built-ins
+description: Standard Object methods and operations
+---
+
+Porffor implements the full Object API for object manipulation and property management.
+
+## Object Constructor
+
+### Object
+
+Creates a new object or converts a value to an object.
+
+```javascript
+Object(value?: any): object
+```
+
+```javascript
+const obj1 = Object();              // {}
+const obj2 = Object(null);          // {}
+const obj3 = Object({ a: 1 });      // { a: 1 }
+const obj4 = Object('hello');       // String object
+const obj5 = Object(42);            // Number object
+```
+
+## Static Methods
+
+### Object.keys
+
+Returns an array of object's own enumerable property names.
+
+```javascript
+Object.keys(obj: object): string[]
+```
+
+```javascript
+const obj = { a: 1, b: 2, c: 3 };
+console.log(Object.keys(obj));  // ['a', 'b', 'c']
+
+const arr = [1, 2, 3];
+console.log(Object.keys(arr));  // ['0', '1', '2']
+```
+
+### Object.values
+
+Returns an array of object's own enumerable property values.
+
+```javascript
+Object.values(obj: object): any[]
+```
+
+```javascript
+const obj = { a: 1, b: 2, c: 3 };
+console.log(Object.values(obj));  // [1, 2, 3]
+
+const arr = [10, 20, 30];
+console.log(Object.values(arr));  // [10, 20, 30]
+```
+
+### Object.entries
+
+Returns an array of object's own enumerable property [key, value] pairs.
+
+```javascript
+Object.entries(obj: object): [string, any][]
+```
+
+```javascript
+const obj = { a: 1, b: 2, c: 3 };
+console.log(Object.entries(obj));
+// [['a', 1], ['b', 2], ['c', 3]]
+
+// Iterate over entries
+for (const [key, value] of Object.entries(obj)) {
+  console.log(`${key}: ${value}`);
+}
+```
+
+### Object.assign
+
+Copies properties from source objects to a target object.
+
+```javascript
+Object.assign(target: object, ...sources: object[]): object
+```
+
+```javascript
+const target = { a: 1 };
+const source1 = { b: 2 };
+const source2 = { c: 3 };
+
+const result = Object.assign(target, source1, source2);
+console.log(result);  // { a: 1, b: 2, c: 3 }
+console.log(target);  // { a: 1, b: 2, c: 3 } (modified)
+
+// Clone object
+const original = { x: 1, y: 2 };
+const clone = Object.assign({}, original);
+```
+
+### Object.create
+
+Creates a new object with specified prototype.
+
+```javascript
+Object.create(proto: object | null, propertiesObject?: object): object
+```
+
+```javascript
+const proto = { greet() { return 'Hello'; } };
+const obj = Object.create(proto);
+console.log(obj.greet());  // 'Hello'
+
+const emptyObj = Object.create(null);  // No prototype
+```
+
+### Object.freeze
+
+Freezes an object (makes it immutable).
+
+```javascript
+Object.freeze(obj: object): object
+```
+
+```javascript
+const obj = { a: 1, b: 2 };
+Object.freeze(obj);
+
+obj.a = 99;        // Fails silently
+obj.c = 3;         // Fails silently
+delete obj.b;      // Fails silently
+
+console.log(obj);  // { a: 1, b: 2 }
+```
+
+### Object.isFrozen
+
+Checks if an object is frozen.
+
+```javascript
+Object.isFrozen(obj: object): boolean
+```
+
+```javascript
+const obj = { a: 1 };
+console.log(Object.isFrozen(obj));  // false
+
+Object.freeze(obj);
+console.log(Object.isFrozen(obj));  // true
+```
+
+### Object.seal
+
+Seals an object (prevents adding/removing properties).
+
+```javascript
+Object.seal(obj: object): object
+```
+
+```javascript
+const obj = { a: 1, b: 2 };
+Object.seal(obj);
+
+obj.a = 99;        // OK (can modify existing)
+obj.c = 3;         // Fails (cannot add)
+delete obj.b;      // Fails (cannot delete)
+
+console.log(obj);  // { a: 99, b: 2 }
+```
+
+### Object.isSealed
+
+Checks if an object is sealed.
+
+```javascript
+Object.isSealed(obj: object): boolean
+```
+
+```javascript
+const obj = { a: 1 };
+console.log(Object.isSealed(obj));  // false
+
+Object.seal(obj);
+console.log(Object.isSealed(obj));  // true
+```
+
+### Object.preventExtensions
+
+Prevents adding new properties to an object.
+
+```javascript
+Object.preventExtensions(obj: object): object
+```
+
+```javascript
+const obj = { a: 1 };
+Object.preventExtensions(obj);
+
+obj.a = 99;        // OK (can modify)
+obj.b = 2;         // Fails (cannot add)
+delete obj.a;      // OK (can delete)
+
+console.log(obj);  // { a: 99 }
+```
+
+### Object.isExtensible
+
+Checks if an object is extensible.
+
+```javascript
+Object.isExtensible(obj: object): boolean
+```
+
+```javascript
+const obj = { a: 1 };
+console.log(Object.isExtensible(obj));  // true
+
+Object.preventExtensions(obj);
+console.log(Object.isExtensible(obj));  // false
+```
+
+### Object.getOwnPropertyNames
+
+Returns all own property names (including non-enumerable).
+
+```javascript
+Object.getOwnPropertyNames(obj: object): string[]
+```
+
+```javascript
+const obj = { a: 1, b: 2 };
+Object.defineProperty(obj, 'c', {
+  value: 3,
+  enumerable: false
+});
+
+console.log(Object.keys(obj));              // ['a', 'b']
+console.log(Object.getOwnPropertyNames(obj)); // ['a', 'b', 'c']
+```
+
+### Object.getOwnPropertyDescriptor
+
+Gets a property descriptor.
+
+```javascript
+Object.getOwnPropertyDescriptor(obj: object, prop: string): PropertyDescriptor | undefined
+```
+
+```javascript
+const obj = { a: 1 };
+const descriptor = Object.getOwnPropertyDescriptor(obj, 'a');
+console.log(descriptor);
+// {
+//   value: 1,
+//   writable: true,
+//   enumerable: true,
+//   configurable: true
+// }
+```
+
+### Object.getOwnPropertyDescriptors
+
+Gets all property descriptors.
+
+```javascript
+Object.getOwnPropertyDescriptors(obj: object): { [key: string]: PropertyDescriptor }
+```
+
+```javascript
+const obj = { a: 1, b: 2 };
+const descriptors = Object.getOwnPropertyDescriptors(obj);
+console.log(descriptors);
+// {
+//   a: { value: 1, writable: true, enumerable: true, configurable: true },
+//   b: { value: 2, writable: true, enumerable: true, configurable: true }
+// }
+```
+
+### Object.defineProperty
+
+Defines a property with a descriptor.
+
+```javascript
+Object.defineProperty(obj: object, prop: string, descriptor: PropertyDescriptor): object
+```
+
+```javascript
+const obj = {};
+
+Object.defineProperty(obj, 'a', {
+  value: 42,
+  writable: false,
+  enumerable: true,
+  configurable: false
+});
+
+console.log(obj.a);  // 42
+obj.a = 99;          // Fails (not writable)
+console.log(obj.a);  // 42
+
+// Accessor property
+let _value = 0;
+Object.defineProperty(obj, 'b', {
+  get() { return _value; },
+  set(v) { _value = v * 2; },
+  enumerable: true,
+  configurable: true
+});
+
+obj.b = 5;
+console.log(obj.b);  // 10
+```
+
+### Object.defineProperties
+
+Defines multiple properties.
+
+```javascript
+Object.defineProperties(obj: object, props: { [key: string]: PropertyDescriptor }): object
+```
+
+```javascript
+const obj = {};
+
+Object.defineProperties(obj, {
+  a: { value: 1, writable: true },
+  b: { value: 2, writable: false },
+  c: { value: 3, enumerable: false }
+});
+
+console.log(obj);  // { a: 1, b: 2 }
+```
+
+### Object.getPrototypeOf
+
+Gets the prototype of an object.
+
+```javascript
+Object.getPrototypeOf(obj: object): object | null
+```
+
+```javascript
+const obj = {};
+const proto = Object.getPrototypeOf(obj);
+console.log(proto === Object.prototype);  // true
+
+const arr = [];
+console.log(Object.getPrototypeOf(arr) === Array.prototype);  // true
+```
+
+### Object.setPrototypeOf
+
+Sets the prototype of an object.
+
+```javascript
+Object.setPrototypeOf(obj: object, proto: object | null): object
+```
+
+```javascript
+const proto = { greet() { return 'Hello'; } };
+const obj = {};
+
+Object.setPrototypeOf(obj, proto);
+console.log(obj.greet());  // 'Hello'
+```
+
+### Object.hasOwn
+
+Checks if object has own property (modern alternative to hasOwnProperty).
+
+```javascript
+Object.hasOwn(obj: object, prop: string): boolean
+```
+
+```javascript
+const obj = { a: 1 };
+console.log(Object.hasOwn(obj, 'a'));         // true
+console.log(Object.hasOwn(obj, 'toString'));  // false (inherited)
+```
+
+### Object.fromEntries
+
+Creates an object from key-value pairs.
+
+```javascript
+Object.fromEntries(entries: Iterable<[string, any]>): object
+```
+
+```javascript
+const entries = [['a', 1], ['b', 2], ['c', 3]];
+const obj = Object.fromEntries(entries);
+console.log(obj);  // { a: 1, b: 2, c: 3 }
+
+// Reverse of Object.entries
+const original = { x: 10, y: 20 };
+const entries2 = Object.entries(original);
+const copy = Object.fromEntries(entries2);
+console.log(copy);  // { x: 10, y: 20 }
+```
+
+## Instance Methods
+
+### hasOwnProperty
+
+Checks if object has own property.
+
+```javascript
+obj.hasOwnProperty(prop: string): boolean
+```
+
+```javascript
+const obj = { a: 1 };
+console.log(obj.hasOwnProperty('a'));         // true
+console.log(obj.hasOwnProperty('toString'));  // false
+```
+
+### toString
+
+Returns string representation.
+
+```javascript
+obj.toString(): string
+```
+
+```javascript
+const obj = { a: 1 };
+console.log(obj.toString());  // '[object Object]'
+```
+
+### valueOf
+
+Returns primitive value.
+
+```javascript
+obj.valueOf(): any
+```
+
+```javascript
+const obj = { a: 1 };
+console.log(obj.valueOf());  // { a: 1 }
+```
+
+## Usage Examples
+
+### Object Manipulation
+
+```javascript
+// Merge objects
+function merge(...objects) {
+  return Object.assign({}, ...objects);
+}
+
+const obj1 = { a: 1, b: 2 };
+const obj2 = { b: 3, c: 4 };
+const merged = merge(obj1, obj2);
+console.log(merged);  // { a: 1, b: 3, c: 4 }
+```
+
+### Property Iteration
+
+```javascript
+const obj = { a: 1, b: 2, c: 3 };
+
+// Iterate over keys
+for (const key of Object.keys(obj)) {
+  console.log(key, obj[key]);
+}
+
+// Iterate over values
+for (const value of Object.values(obj)) {
+  console.log(value);
+}
+
+// Iterate over entries
+for (const [key, value] of Object.entries(obj)) {
+  console.log(`${key} = ${value}`);
+}
+```
+
+### Object Transformation
+
+```javascript
+function mapObject(obj, fn) {
+  return Object.fromEntries(
+    Object.entries(obj).map(([k, v]) => [k, fn(v)])
+  );
+}
+
+const obj = { a: 1, b: 2, c: 3 };
+const doubled = mapObject(obj, x => x * 2);
+console.log(doubled);  // { a: 2, b: 4, c: 6 }
+```
+
+## See Also
+
+- [Object API](/api/porffor/object) - Low-level Porffor object operations
+- [Array Built-ins](/api/builtins/array) - Array methods
+- [Global Functions](/api/builtins/globals) - Object constructor

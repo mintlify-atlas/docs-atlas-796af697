@@ -1,0 +1,503 @@
+---
+title: "Writing Custom Built-ins"
+description: "Learn how to write custom built-in functions for Porffor using TypeScript with WebAssembly optimizations"
+---
+
+## Overview
+
+Porffor built-ins are TypeScript functions that extend the JavaScript standard library or add custom functionality. They're compiled directly into WebAssembly and can use Porffor-specific features like inline Wasm, type introspection, and direct memory access.
+
+Built-ins are defined in `compiler/builtins/*.ts` and must be precompiled before they take effect.
+
+## Setup
+
+### 1. Clone and Install
+
+```bash
+git clone https://github.com/CanadaHonk/porffor.git
+cd porffor
+npm install
+```
+
+### 2. Precompile After Changes
+
+<Warning>
+**CRITICAL**: After modifying any file in `compiler/builtins/`, you MUST run:
+
+```bash
+./porf precompile
+```
+
+Otherwise your changes will have no effect!
+</Warning>
+
+## Naming Convention
+
+Built-in function names use underscores instead of dots:
+
+```typescript
+// JavaScript: Array.isArray()
+export const __Array_isArray = (x: unknown): boolean => {
+  return Porffor.type(x) == Porffor.TYPES.array;
+};
+
+// JavaScript: String.prototype.toUpperCase()
+export const __String_prototype_toUpperCase = (_this: string) => {
+  // implementation
+};
+
+// JavaScript: Math.max()
+export const __Math_max = (...args: number[]): number => {
+  // implementation
+};
+```
+
+**Pattern**: `__Namespace_method` or `__Type_prototype_method`
+
+## The `_this` Parameter
+
+Since `this` doesn't exist in Porffor (yet), prototype methods use a `_this` parameter:
+
+```typescript
+export const __Array_prototype_at = (_this: any[], index: any) => {
+  const len: i32 = _this.length;
+  // ... implementation
+};
+```
+
+The first parameter is always the object the method is called on.
+
+## Type Annotations
+
+Built-ins **require** explicit type annotations for all variables:
+
+```typescript
+// ✅ CORRECT
+let count: i32 = 0;
+const name: bytestring = 'hello';
+let result: f64 = 3.14;
+
+// ❌ WRONG - Missing type annotations
+let count = 0;
+const name = 'hello';
+```
+
+### Common Types
+
+- `number` / `f64` - Standard JavaScript number (64-bit float)
+- `i32` - 32-bit integer, **use for pointers**
+- `i64` - 64-bit integer
+- `bytestring` - ASCII/Latin-1 optimized string (1 byte per character)
+- `string` - UTF-16 string (2 bytes per character)
+- `any` - Any type (requires runtime type checking)
+- `any[]` - Array
+- `object` - Object
+
+## Return Types
+
+<Warning>
+**Do NOT set return types for prototype methods!** It can cause errors and unexpected behavior.
+</Warning>
+
+```typescript
+// ✅ CORRECT - No return type
+export const __String_prototype_trim = (_this: string) => {
+  return result;
+};
+
+// ❌ WRONG - Return type on prototype method
+export const __String_prototype_trim = (_this: string): string => {
+  return result;
+};
+
+// ✅ OK - Return type on static methods
+export const __Array_isArray = (x: unknown): boolean => {
+  return Porffor.type(x) == Porffor.TYPES.array;
+};
+```
+
+## Complete Example: ByteString.prototype.toUpperCase
+
+Here's a real built-in from Porffor that converts a ByteString to uppercase:
+
+```typescript
+export const __ByteString_prototype_toUpperCase = (_this: bytestring) => {
+  // Get the length of the input string
+  const len: i32 = _this.length;
+
+  // Create output string and set its length
+  let out: bytestring = '';
+  Porffor.wasm.i32.store(out, len, 0, 0);
+
+  // Get pointers for input and output strings
+  let i: i32 = Porffor.wasm`local.get ${_this}`,
+      j: i32 = Porffor.wasm`local.get ${out}`;
+
+  // Calculate end pointer
+  const endPtr: i32 = i + len;
+  
+  // Loop through each character
+  while (i < endPtr) {
+    // Read character code and increment pointer
+    let chr: i32 = Porffor.wasm.i32.load8_u(i++, 0, 4);
+
+    // If lowercase letter (a-z), convert to uppercase
+    if (chr >= 97) if (chr <= 122) chr -= 32;
+
+    // Write character to output and increment pointer
+    Porffor.wasm.i32.store8(j++, chr, 0, 4);
+  }
+
+  return out;
+};
+```
+
+### Breakdown
+
+1. **Get length**: `_this.length` works normally
+2. **Allocate output**: Create empty bytestring and set length manually
+3. **Get pointers**: Use `Porffor.wasm` to get memory addresses
+4. **Iterate**: Loop from start pointer to end pointer
+5. **Process**: Load byte, transform, store byte
+6. **Return**: Return the output string
+
+## String vs ByteString
+
+Many built-ins need both versions:
+
+```typescript
+// ByteString version (8-bit characters)
+export const __ByteString_prototype_toUpperCase = (_this: bytestring) => {
+  // ...
+  let chr: i32 = Porffor.wasm.i32.load8_u(ptr, 0, 4);  // 8-bit load
+  Porffor.wasm.i32.store8(ptr, chr, 0, 4);             // 8-bit store
+  // ...
+};
+
+// String version (16-bit characters)
+export const __String_prototype_toUpperCase = (_this: string) => {
+  // ...
+  let chr: i32 = Porffor.wasm.i32.load16_u(ptr, 0, 4); // 16-bit load
+  Porffor.wasm.i32.store16(ptr, chr, 0, 4);            // 16-bit store
+  // ...
+};
+```
+
+**Why?** ByteStrings use 1 byte per character (ASCII/Latin-1), regular strings use 2 bytes (UTF-16).
+
+## Memory Operations
+
+### Getting Pointers
+
+```typescript
+const ptr: i32 = Porffor.wasm`local.get ${variable}`;
+```
+
+### Setting Object Length
+
+```typescript
+// Modern way (preferred)
+obj.length = newLength;
+
+// Manual way
+Porffor.wasm.i32.store(obj, newLength, 0, 0);
+```
+
+### Reading/Writing Characters
+
+```typescript
+// ByteString (8-bit)
+const charCode: i32 = Porffor.wasm.i32.load8_u(ptr, 0, 4);
+Porffor.wasm.i32.store8(ptr, charCode, 0, 4);
+
+// String (16-bit)
+const charCode: i32 = Porffor.wasm.i32.load16_u(ptr, 0, 4);
+Porffor.wasm.i32.store16(ptr, charCode, 0, 4);
+```
+
+The last two arguments (`0, 4`) are alignment and offset - you rarely need to change them.
+
+## Type Checking
+
+Use `Porffor.type()` for runtime type checking:
+
+```typescript
+export const __Array_from = (arg: any, mapFn: any, thisArg: any = undefined): any[] => {
+  // Check for nullish
+  if (arg == null) throw new TypeError('Argument cannot be nullish');
+
+  let out: any[] = Porffor.malloc();
+
+  // Check if it's an array-like type
+  if (Porffor.fastOr(
+    Porffor.type(arg) == Porffor.TYPES.array,
+    (Porffor.type(arg) | 0b10000000) == Porffor.TYPES.bytestring,
+    Porffor.type(arg) == Porffor.TYPES.set
+  )) {
+    // Handle array-like
+    for (const x of arg) {
+      out[out.length] = x;
+    }
+  }
+  
+  return out;
+};
+```
+
+## Arrow Functions Required
+
+Built-ins must use arrow functions:
+
+```typescript
+// ✅ CORRECT
+export const __Math_max = (...args: number[]): number => {
+  // implementation
+};
+
+// ❌ WRONG - Function declaration
+export function __Math_max(...args: number[]): number {
+  // implementation
+}
+```
+
+## Porffor-Specific TypeScript Notes
+
+### 1. Explicit Types Required
+
+```typescript
+let count: i32 = 0;  // ✅ Required
+let count = 0;       // ❌ Error
+```
+
+### 2. Fast Boolean Operations
+
+```typescript
+// Non-short-circuiting OR (evaluates all conditions)
+if (Porffor.fastOr(cond1, cond2, cond3)) { }
+
+// Non-short-circuiting AND
+if (Porffor.fastAnd(cond1, cond2, cond3)) { }
+```
+
+### 3. Truthy Checking
+
+```typescript
+// Fast but non-spec-compliant truthy check
+if (value) { }
+
+// Spec-compliant truthy check
+if (!!value) { }
+```
+
+### 4. Object Literals Need Variables
+
+```typescript
+// ✅ CORRECT
+const out: bytestring = 'result';
+console.log(out);
+
+// ❌ WRONG - Allocator constraint
+console.log('result');
+```
+
+### 5. Non-Strict Equality Preferred
+
+```typescript
+if (value == null) { }  // ✅ Preferred
+if (value === null) { } // Works but use ==
+```
+
+### 6. No External Functions
+
+You cannot call non-exported functions or use variables outside the current function:
+
+```typescript
+// ❌ WRONG - Can't call helper
+const helper = () => { };
+export const __MyFunc = () => {
+  helper(); // Error!
+};
+
+// ✅ CORRECT - Inline logic
+export const __MyFunc = () => {
+  // All logic here
+};
+```
+
+## Using ECMA-262 Utilities
+
+Porffor provides spec-compliant conversion utilities:
+
+```typescript
+export const __Array_prototype_at = (_this: any[], index: any) => {
+  const len: i32 = _this.length;
+  
+  // Convert to integer or infinity (spec-compliant)
+  index = ecma262.ToIntegerOrInfinity(index);
+  
+  const k: i32 = index >= 0 ? index : len + index;
+  
+  if (k < 0 || k >= len) return undefined;
+  return _this[k];
+};
+```
+
+Available utilities:
+- `ecma262.ToIntegerOrInfinity()`
+- `ecma262.ToIndex()`
+- `ecma262.ToString()`
+- `ecma262.ToNumber()`
+- `ecma262.ToPropertyKey()`
+- `ecma262.IsConstructor()`
+
+## Memory Optimization Tips
+
+1. **Use ByteStrings for ASCII**: 50% memory savings
+2. **Reuse Variables**: Minimize allocations
+3. **Pointer Arithmetic**: Faster than array indexing in hot loops
+4. **Pre-allocate Size**: Set `.length` before writing
+
+```typescript
+// ✅ Efficient - Pre-allocated
+let out: bytestring = '';
+out.length = inputLength;
+for (let i: i32 = 0; i < inputLength; i++) {
+  out[i] = process(input[i]);
+}
+
+// ❌ Inefficient - Multiple allocations
+let out: bytestring = '';
+for (let i: i32 = 0; i < inputLength; i++) {
+  out += String.fromCharCode(process(input[i]));
+}
+```
+
+## Testing Your Built-ins
+
+After implementing a built-in:
+
+1. **Precompile**: `./porf precompile`
+2. **Test manually**: `./porf test-script.js`
+3. **Run Test262**: `node test262 built-ins/YourFeature`
+
+```bash
+# Run specific test suite
+node test262 built-ins/Array/from
+
+# See errors
+node test262 built-ins/Array/from --log-errors
+
+# Debug assertions
+node test262 built-ins/Array/from --debug-asserts
+```
+
+## Example: Array.isArray
+
+Simple static method:
+
+```typescript
+export const __Array_isArray = (x: unknown): boolean =>
+  Porffor.type(x) == Porffor.TYPES.array;
+```
+
+## Example: Array Constructor
+
+Constructor with multiple behaviors:
+
+```typescript
+export const Array = function (...args: any[]): any[] {
+  const argsLen: number = args.length;
+  
+  if (argsLen == 0) {
+    // 0 args: new empty array
+    const out: any[] = Porffor.malloc();
+    return out;
+  }
+
+  if (argsLen == 1) {
+    const arg: any = args[0];
+    if (Porffor.type(arg) == Porffor.TYPES.number) {
+      // 1 number arg: use as length
+      const n: number = args[0];
+      if (Porffor.fastOr(
+        n < 0,
+        n > 4294967295,
+        !Number.isInteger(n)
+      )) throw new RangeError('Invalid array length');
+
+      const out: any[] = Porffor.malloc();
+      out.length = n;
+      return out;
+    }
+  }
+
+  // Multiple args or 1 non-number: return args
+  return args;
+};
+```
+
+## Common Patterns
+
+### Iteration with Pointers
+
+```typescript
+let i: i32 = Porffor.wasm`local.get ${input}`;
+const end: i32 = i + len;
+while (i < end) {
+  const char: i32 = Porffor.wasm.i32.load8_u(i++, 0, 4);
+  // process char
+}
+```
+
+### Type-Specific Code Paths
+
+```typescript
+if (Porffor.type(str) == Porffor.TYPES.bytestring) {
+  // ByteString path
+} else {
+  // String path
+}
+```
+
+### Validating Ranges
+
+```typescript
+if (Porffor.fastOr(value < min, value > max, !Number.isInteger(value))) {
+  throw new RangeError('Invalid value');
+}
+```
+
+## Resources
+
+- **Source Code**: `compiler/builtins/*.ts` - See real examples
+- **API Reference**: `compiler/builtins/porffor.d.ts` - Type definitions
+- **Contributing Guide**: `CONTRIBUTING.md` - Full details
+- **Test262**: Validate against ECMAScript spec
+
+## Getting Help
+
+If you get stuck:
+
+1. Check existing built-ins in `compiler/builtins/` for examples
+2. Read the [CONTRIBUTING.md](https://github.com/CanadaHonk/porffor/blob/main/CONTRIBUTING.md)
+3. Ask in the [Porffor Discord](https://discord.gg/6crs9Znx9R)
+
+## Best Practices Summary
+
+✅ **DO**:
+- Use explicit type annotations everywhere
+- Use arrow functions
+- Run `./porf precompile` after changes
+- Write both String and ByteString versions
+- Use `_this` parameter for prototype methods
+- Use `i32` type for pointers
+- Test with Test262
+
+❌ **DON'T**:
+- Set return types on prototype methods
+- Use function declarations
+- Call non-exported functions
+- Use variables outside function scope
+- Forget to precompile
+- Use `===` when `==` works
+- Allocate objects in loops if avoidable

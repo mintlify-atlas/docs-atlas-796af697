@@ -1,0 +1,251 @@
+---
+title: porf <file>
+description: Compile and execute JavaScript files
+---
+
+The default command compiles and executes JavaScript or TypeScript files using Porffor's AOT compiler.
+
+## Usage
+
+```bash
+porf [flags] path/to/script.js [...args]
+```
+
+You can optionally use the explicit `run` command:
+
+```bash
+porf run [flags] path/to/script.js [...args]
+```
+
+## Examples
+
+<CodeGroup>
+```bash Basic execution
+porf script.js
+```
+
+```bash With arguments
+porf script.js --arg1 value1 --arg2 value2
+```
+
+```bash TypeScript file
+porf -t script.ts
+# or
+porf --parse-types script.ts
+```
+
+```bash With optimization
+porf -O2 script.js
+```
+
+```bash Debug mode
+porf -d script.js
+```
+</CodeGroup>
+
+## Execution Options
+
+<ParamField path="--no-run" type="flag">
+  Compile without executing (useful for checking compilation errors)
+</ParamField>
+
+<ParamField path="-e, --eval" type="string">
+  Evaluate JavaScript expression instead of reading from file
+  
+  ```bash
+  porf -e "console.log('Hello, World!')"
+  ```
+</ParamField>
+
+<ParamField path="-p, --print" type="string">
+  Evaluate expression and print the result
+  
+  ```bash
+  porf -p "2 + 2"  # Outputs: 4
+  porf -p "Math.sqrt(16)"  # Outputs: 4
+  ```
+</ParamField>
+
+## Source Options
+
+<ParamField path="path/to/script.js" type="string" required>
+  Path to JavaScript or TypeScript file to execute
+</ParamField>
+
+<ParamField path="https://..." type="string">
+  URL to JavaScript file (HTTPS only)
+  
+  ```bash
+  porf https://example.com/script.js
+  ```
+</ParamField>
+
+## Performance Flags
+
+<ParamField path="-t" type="flag">
+  Display timing information after execution
+  
+  Shows:
+  - Total compilation + execution time
+  - Execution time only
+</ParamField>
+
+<ParamField path="-b" type="flag">
+  Display compiled Wasm binary size
+  
+  ```bash
+  porf -b script.js
+  # Outputs: wasm size: 1234 bytes
+  ```
+</ParamField>
+
+## Common Flags
+
+All [global flags](/cli/overview#global-flags) are supported:
+
+- `-On`: Optimization level
+- `-d`: Debug mode
+- `--module`: Parse as ES module
+- `--parse-types`: Enable TypeScript parsing
+- `--opt-types`: Use type hints for optimization
+
+## Output Examples
+
+<CodeGroup>
+```bash Basic execution
+$ porf hello.js
+Hello, World!
+```
+
+```bash With timing
+$ porf -t script.js
+Result: 42
+
+total time: 145.23ms
+execution time: 12.45ms
+```
+
+```bash With size info
+$ porf -b script.js
+Output
+
+wasm size: 2048 bytes
+```
+
+```bash Combined flags
+$ porf -t -b -O2 script.js
+Output
+
+wasm size: 1856 bytes
+total time: 132.10ms
+execution time: 8.23ms
+```
+</CodeGroup>
+
+## Script Arguments
+
+Pass arguments to your script after the filename:
+
+```bash
+porf script.js arg1 arg2 --flag value
+```
+
+Access them in your code via `process.argv`:
+
+```javascript script.js
+// process.argv[0] is 'porf'
+// process.argv[1] is 'script.js'
+// process.argv[2] is 'arg1'
+console.log(process.argv.slice(2));
+```
+
+## Error Handling
+
+Errors are displayed differently based on debug mode:
+
+<CodeGroup>
+```bash Normal mode
+$ porf script.js
+ReferenceError: foo is not defined
+```
+
+```bash Debug mode (-d)
+$ porf -d script.js
+ReferenceError: foo is not defined
+    at <function_name>
+    ... (full stack trace)
+```
+</CodeGroup>
+
+## TypeScript Support
+
+<CodeGroup>
+```bash Force TypeScript parsing
+porf -t script.ts
+```
+
+```bash Parse types (auto-detects .ts)
+porf --parse-types script.ts
+```
+
+```bash Optimize with type hints
+porf --parse-types --opt-types script.ts
+```
+</CodeGroup>
+
+<Note>
+Porffor parses TypeScript syntax but does not perform type checking. Type annotations can be used as optimization hints with `--opt-types`.
+</Note>
+
+## Module Support
+
+Parse file as ES module:
+
+```bash
+porf --module script.js
+```
+
+## Remote Execution
+
+Execute JavaScript from HTTPS URLs:
+
+```bash
+porf https://example.com/script.js
+```
+
+<Warning>
+Only HTTPS URLs are supported for security. The script is downloaded and executed without confirmation.
+</Warning>
+
+## Performance Tips
+
+1. **Use optimization flags**: `-O2` or `-O3` for better runtime performance
+2. **Enable type hints**: `--opt-types` with TypeScript annotations
+3. **Profile first**: Use `porf profile` to identify bottlenecks
+4. **Consider native**: For maximum performance, compile to native binary
+
+## Limitations
+
+Current limitations when running JavaScript:
+
+- Limited async support (`Promise` and `await` have known bugs)
+- No variables between scopes (except args and globals)
+- No `eval()` or `Function()` (AOT compilation)
+- Limited standard library support
+
+## Related Commands
+
+<CardGroup cols={2}>
+  <Card title="Profile" icon="chart-line" href="/cli/profile">
+    Analyze performance bottlenecks
+  </Card>
+  <Card title="Debug" icon="bug" href="/cli/debug">
+    Interactive debugging
+  </Card>
+  <Card title="Wasm" icon="cube" href="/cli/wasm">
+    Compile to WebAssembly
+  </Card>
+  <Card title="Native" icon="microchip" href="/cli/native">
+    Compile to native binary
+  </Card>
+</CardGroup>

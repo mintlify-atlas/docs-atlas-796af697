@@ -1,0 +1,207 @@
+---
+title: Installation
+description: Install Porffor and set up your development environment
+---
+
+Get started with Porffor in just a few minutes. This guide covers installation via npm and alternative methods for different development environments.
+
+## Quick Install
+
+The easiest way to install Porffor is via npm:
+
+```bash
+npm install -g porffor@latest
+```
+
+This installs the `porf` command globally, making it available from anywhere on your system.
+
+<Tip>
+Make sure you have Node.js installed on your system before running this command. Porffor requires a modern version of Node.js to function properly.
+</Tip>
+
+## Verify Installation
+
+After installation, verify that Porffor is working correctly:
+
+```bash
+porf --version
+```
+
+You should see the version number displayed, such as `0.61.10`.
+
+## Development Setup
+
+If you want to contribute to Porffor or use the latest development version, you can clone and build from source:
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/CanadaHonk/porffor.git
+    cd porffor
+    ```
+  </Step>
+  
+  <Step title="Install dependencies">
+    ```bash
+    npm install
+    ```
+  </Step>
+  
+  <Step title="Run Porffor">
+    Use the local wrapper scripts to run Porffor from source:
+    
+    **Unix/Linux/macOS:**
+    ```bash
+    ./porf path/to/script.js
+    ```
+    
+    **Windows:**
+    ```bash
+    .\porf path/to/script.js
+    ```
+  </Step>
+</Steps>
+
+### Using Alternative Runtimes
+
+You can run Porffor with different JavaScript runtimes:
+
+<CodeGroup>
+```bash Node.js
+node runtime/index.js script.js
+```
+
+```bash Deno
+deno run -A runtime/index.js script.js
+```
+
+```bash Bun
+bun runtime/index.js script.js
+```
+</CodeGroup>
+
+<Info>
+All three runtimes (Node.js, Deno, and Bun) are supported and should work seamlessly with Porffor.
+</Info>
+
+## Native Binary Compilation Setup
+
+To compile JavaScript to native binaries, you'll need a C compiler installed:
+
+### Supported Compilers
+
+Porffor supports multiple C compilers:
+
+- **Clang** (default, recommended)
+- **GCC**
+- **Zig**
+
+### Installing Compilers
+
+<CodeGroup>
+```bash macOS
+# Clang (comes with Xcode Command Line Tools)
+xcode-select --install
+```
+
+```bash Linux (Ubuntu/Debian)
+# Clang
+sudo apt-get install clang
+
+# GCC
+sudo apt-get install gcc
+
+# Zig
+sudo snap install zig --classic --beta
+```
+
+```bash Windows
+# Install Clang via LLVM
+# Download from: https://releases.llvm.org/
+
+# Or install GCC via MinGW
+# Download from: https://www.mingw-w64.org/
+```
+</CodeGroup>
+
+### Specifying Compiler
+
+Choose your compiler when compiling to native binaries:
+
+```bash
+porf native script.js output.exe --compiler=clang
+porf native script.js output.exe --compiler=gcc
+porf native script.js output.exe --compiler=zig
+```
+
+<Note>
+Clang is the default compiler and generally provides the best optimization and compatibility.
+</Note>
+
+## Optional Parser Installation
+
+Porffor uses Acorn as the default parser, but supports alternative parsers that are installed as optional dependencies:
+
+```bash
+npm install -g porffor@latest --include=optional
+```
+
+This installs additional parsers:
+
+- `@babel/parser` - Required for TypeScript support
+- `meriyah`
+- `hermes-parser`
+- `oxc-parser`
+
+Switch parsers using the `--parser` flag:
+
+```bash
+porf script.js --parser=@babel/parser
+porf script.js --parser=meriyah
+porf script.js --parser=hermes-parser
+```
+
+## Troubleshooting
+
+### Command Not Found
+
+If you get a "command not found" error after installation:
+
+1. Make sure npm's global bin directory is in your PATH
+2. Run `npm config get prefix` to find your global install location
+3. Add `<prefix>/bin` to your PATH environment variable
+
+### Permission Errors on Linux/macOS
+
+If you encounter permission errors during installation:
+
+```bash
+# Option 1: Use sudo (not recommended)
+sudo npm install -g porffor@latest
+
+# Option 2: Configure npm to use a different directory (recommended)
+mkdir ~/.npm-global
+npm config set prefix '~/.npm-global'
+export PATH=~/.npm-global/bin:$PATH
+npm install -g porffor@latest
+```
+
+### Native Compilation Errors
+
+If native binary compilation fails:
+
+1. Verify your C compiler is installed and in your PATH
+2. Try a different compiler using `--compiler=gcc` or `--compiler=zig`
+3. Check the compiler output for specific error messages
+
+<Warning>
+Native binary compilation uses 2c, Porffor's experimental WebAssembly-to-C compiler. Some features may not work correctly in native binaries yet.
+</Warning>
+
+## Next Steps
+
+Now that you have Porffor installed, learn how to use it:
+
+<Card title="Quick Start Guide" icon="rocket" href="/quickstart">
+  Learn how to compile and run your first JavaScript program with Porffor
+</Card>

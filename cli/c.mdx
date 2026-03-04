@@ -1,0 +1,397 @@
+---
+title: porf c
+description: Compile JavaScript to C source code
+---
+
+Generate C source code from JavaScript or TypeScript using Porffor's 2c (Wasm → C) compiler.
+
+<Warning>
+2c is Porffor's experimental WebAssembly to C compiler. The generated C code is functional but still in development.
+</Warning>
+
+## Usage
+
+```bash
+porf c [flags] input.js [output.c]
+```
+
+When no output file is specified, C code is printed to stdout.
+
+## Examples
+
+<CodeGroup>
+```bash Output to file
+porf c script.js output.c
+```
+
+```bash Output to stdout
+porf c script.js
+# or redirect
+porf c script.js > output.c
+```
+
+```bash With optimization
+porf c -O3 script.js output.c
+```
+
+```bash TypeScript input
+porf c --parse-types script.ts output.c
+```
+</CodeGroup>
+
+## Arguments
+
+<ParamField path="input.js" type="string" required>
+  JavaScript or TypeScript source file to compile
+</ParamField>
+
+<ParamField path="output.c" type="string">
+  Output C source file (optional - prints to stdout if omitted)
+</ParamField>
+
+## Compilation Flags
+
+<ParamField path="-On" type="flag">
+  Porffor optimization level (affects generated Wasm and C)
+  
+  ```bash
+  porf c -O0 script.js output.c  # No optimization
+  porf c -O3 script.js output.c  # Maximum optimization
+  ```
+</ParamField>
+
+<ParamField path="-d" type="flag">
+  Include debug information
+  
+  - Preserves variable and function names
+  - Adds comments and debug markers
+  - More readable C output
+  
+  ```bash
+  porf c -d script.js output.c
+  ```
+</ParamField>
+
+<ParamField path="--valtype" type="string" default="f64">
+  Value type: `i32` or `f64`
+  
+  ```bash
+  porf c --valtype=i32 script.js output.c
+  ```
+</ParamField>
+
+## TypeScript Support
+
+<ParamField path="--parse-types" type="flag">
+  Enable TypeScript parsing
+</ParamField>
+
+<ParamField path="--opt-types" type="flag">
+  Use type annotations for optimization
+  
+  ```bash
+  porf c --parse-types --opt-types script.ts output.c
+  ```
+</ParamField>
+
+## Generated C Code
+
+The output C code:
+- Is standard C (C99/C11 compatible)
+- Requires minimal dependencies (just `math.h`)
+- Can be compiled with any C compiler
+- Contains little boilerplate or preluded code
+
+### Example Workflow
+
+```bash
+# Generate C code
+porf c script.js output.c
+
+# Compile with any C compiler
+gcc -lm -O3 output.c -o myapp
+clang -lm -O3 output.c -o myapp
+zig cc -lm -O3 output.c -o myapp
+
+# Run the executable
+./myapp
+```
+
+## Output to Stdout
+
+Useful for inspecting or piping:
+
+<CodeGroup>
+```bash View in pager
+porf c script.js | less
+```
+
+```bash Count lines
+porf c script.js | wc -l
+```
+
+```bash Compile directly
+porf c script.js | gcc -x c -lm -O3 - -o myapp
+```
+
+```bash Save and compile
+porf c script.js > output.c
+gcc -lm -O3 output.c -o myapp
+```
+</CodeGroup>
+
+## Inspecting Generated Code
+
+<CodeGroup>
+```bash Readable output
+# Use debug mode for readable C
+porf c -d script.js output.c
+```
+
+```bash Optimized output
+# Production: minimal, optimized C
+porf c -O3 script.js output.c
+```
+
+```bash View specific functions
+porf c -d script.js | grep -A 20 "function_name"
+```
+</CodeGroup>
+
+## Compilation Options
+
+Once you have C code, compile it with various options:
+
+<Tabs>
+  <Tab title="GCC">
+    ```bash
+    # Basic
+    gcc -lm output.c -o myapp
+    
+    # Optimized
+    gcc -lm -O3 -fomit-frame-pointer -s output.c -o myapp
+    
+    # Maximum optimization
+    gcc -lm -Ofast -flto -march=native output.c -o myapp
+    
+    # Debug
+    gcc -lm -O0 -g output.c -o myapp_debug
+    ```
+  </Tab>
+  
+  <Tab title="Clang">
+    ```bash
+    # Basic
+    clang -lm output.c -o myapp
+    
+    # Optimized
+    clang -lm -O3 -fomit-frame-pointer output.c -o myapp
+    
+    # Maximum optimization  
+    clang -lm -Ofast -flto -march=native output.c -o myapp
+    
+    # Debug
+    clang -lm -O0 -g output.c -o myapp_debug
+    ```
+  </Tab>
+  
+  <Tab title="Zig">
+    ```bash
+    # Basic
+    zig cc -lm output.c -o myapp
+    
+    # Optimized
+    zig cc -lm -O3 output.c -o myapp
+    
+    # Cross-compile
+    zig cc -target x86_64-windows -lm output.c -o myapp.exe
+    ```
+  </Tab>
+</Tabs>
+
+## Use Cases
+
+### 1. Understanding Compilation
+
+Inspect how JavaScript is translated:
+
+```bash
+porf c -d simple.js | less
+```
+
+### 2. Custom Build Process
+
+Integrate into existing C build systems:
+
+```bash
+# In Makefile
+myapp.c: script.js
+	porf c $< $@
+
+myapp: myapp.c
+	gcc -lm -O3 $< -o $@
+```
+
+### 3. Cross-Compilation
+
+Generate C once, compile for multiple platforms:
+
+```bash
+# Generate C
+porf c script.js output.c
+
+# Compile for different platforms
+gcc -lm output.c -o myapp_linux
+x86_64-w64-mingw32-gcc -lm output.c -o myapp.exe
+zig cc -target aarch64-macos -lm output.c -o myapp_mac
+```
+
+### 4. Manual Optimization
+
+Edit generated C for specific optimizations:
+
+```bash
+porf c -d script.js output.c
+# Edit output.c manually
+gcc -lm -O3 output.c -o myapp
+```
+
+## Code Structure
+
+The generated C code typically includes:
+
+```c
+#include <math.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+// Memory management
+static uint8_t* memory;
+static size_t memory_size;
+
+// Generated functions
+void func_0() { /* ... */ }
+void func_1() { /* ... */ }
+
+// Main entry point
+int main() {
+  // Initialize memory
+  // Call main function
+  return 0;
+}
+```
+
+## Advanced Options
+
+<ParamField path="--cyclone" type="flag">
+  Enable Cyclone optimizer (affects C output)
+  
+  ```bash
+  porf c --cyclone script.js output.c
+  ```
+</ParamField>
+
+<ParamField path="--profile-compiler" type="flag">
+  Log compilation performance
+  
+  ```bash
+  porf c --profile-compiler script.js output.c
+  ```
+</ParamField>
+
+<ParamField path="--module" type="flag">
+  Parse as ES module
+</ParamField>
+
+## Comparing with Native Command
+
+The `porf c` and `porf native` commands are related:
+
+```bash
+# These are equivalent:
+porf native script.js myapp
+
+# Is the same as:
+porf c script.js temp.c
+clang -lm -Ofast -flto temp.c -o myapp
+strip myapp
+```
+
+<Note>
+Use `porf native` for convenience, `porf c` for control and inspection.
+</Note>
+
+## Performance Tips
+
+<CodeGroup>
+```bash Maximum Porffor optimization
+porf c -O3 --cyclone script.js output.c
+gcc -lm -Ofast -flto -march=native output.c -o myapp
+```
+
+```bash Debugging
+porf c -d -O0 script.js output.c
+gcc -lm -O0 -g output.c -o myapp_debug
+gdb ./myapp_debug
+```
+
+```bash Fast iteration
+porf c -O1 script.js output.c
+gcc -lm -O2 output.c -o myapp
+```
+</CodeGroup>
+
+## Limitations
+
+- Generated C is platform-independent but requires C compiler
+- No WASI or standard imports included
+- Requires `math.h` for mathematical operations
+- Not human-written quality (machine-generated)
+
+## Troubleshooting
+
+### C Compilation Errors
+
+```bash
+# Try debug mode for more readable C
+porf c -d script.js output.c
+
+# Check C compiler compatibility
+gcc --version
+clang --version
+```
+
+### Missing Math Library
+
+```bash
+# Always link math library
+gcc -lm output.c -o myapp
+clang -lm output.c -o myapp
+```
+
+### Large C Files
+
+```bash
+# Use optimization to reduce size
+porf c -O3 script.js output.c
+
+# Or compile with aggressive optimization
+gcc -lm -O3 -ffunction-sections -fdata-sections -Wl,--gc-sections output.c -o myapp
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Native Compilation" icon="microchip" href="/cli/native">
+    Compile directly to executables
+  </Card>
+  <Card title="Wasm Output" icon="cube" href="/cli/wasm">
+    Generate WebAssembly instead
+  </Card>
+  <Card title="Profile First" icon="chart-line" href="/cli/profile">
+    Optimize before compiling
+  </Card>
+  <Card title="Run Code" icon="play" href="/cli/run">
+    Test before generating C
+  </Card>
+</CardGroup>

@@ -1,0 +1,208 @@
+---
+title: CLI Overview
+description: Complete guide to Porffor's command-line interface
+---
+
+Porffor provides a powerful command-line interface for compiling and running JavaScript and TypeScript code.
+
+## Installation
+
+Install Porffor globally via npm:
+
+```bash
+npm install -g porffor@latest
+```
+
+## Basic Usage
+
+```bash
+porf <command> [...flags] path/to/script.js [...args]
+```
+
+## Available Commands
+
+### Compile Commands
+
+<CardGroup cols={2}>
+  <Card title="Run" icon="play" href="/cli/run">
+    Compile and execute JavaScript files
+  </Card>
+  <Card title="Wasm" icon="cube" href="/cli/wasm">
+    Compile to WebAssembly binary
+  </Card>
+  <Card title="Native" icon="microchip" href="/cli/native">
+    Compile to native executable
+  </Card>
+  <Card title="C" icon="code" href="/cli/c">
+    Compile to C source code
+  </Card>
+  <Card title="Lambda" icon="aws" href="/cli/lambda">
+    Compile to AWS Lambda deployment package
+  </Card>
+</CardGroup>
+
+### Analyze Commands
+
+<CardGroup cols={2}>
+  <Card title="Profile" icon="chart-line" href="/cli/profile">
+    View detailed function-by-function performance
+  </Card>
+  <Card title="Debug" icon="bug" href="/cli/debug">
+    Debug JavaScript source with interactive debugger
+  </Card>
+</CardGroup>
+
+### Interactive Mode
+
+<Card title="REPL" icon="terminal" href="/cli/repl">
+  Interactive Read-Eval-Print Loop
+</Card>
+
+## Global Flags
+
+These flags work across all commands:
+
+<ParamField path="-On" type="flag">
+  Optimization level. Use `-O0`, `-O1` (default), `-O2`, or `-O3`
+  
+  - `-O0`: Disable optimizations
+  - `-O1`: Basic optimizations (simplify instructions, treeshake Wasm imports)
+  - `-O2`: Advanced optimizations (partial evaluation) - unstable
+  - `-O3`: Maximum optimizations
+</ParamField>
+
+<ParamField path="-t" type="flag">
+  Force parsing input as TypeScript
+</ParamField>
+
+<ParamField path="-d" type="flag">
+  Debug mode - includes names in Wasm output and enables debug logs
+</ParamField>
+
+<ParamField path="--module" type="flag">
+  Parse input as an ES module
+</ParamField>
+
+<ParamField path="--secure" type="flag">
+  Secure mode - errors on unsafe Porffor features (e.g., FFI)
+</ParamField>
+
+<ParamField path="--parser" type="string" default="acorn">
+  Parser to use: `acorn`, `@babel/parser`, `meriyah`, or `hermes-parser`
+</ParamField>
+
+<ParamField path="--parse-types" type="flag">
+  Enable parsing TypeScript type annotations. If `--parser` is unset, defaults to `@babel/parser`
+</ParamField>
+
+<ParamField path="--opt-types" type="flag">
+  Use type annotations as compiler hints for optimization (does not type check)
+</ParamField>
+
+<ParamField path="--valtype" type="string" default="f64">
+  Value type to use: `i32` or `f64`
+</ParamField>
+
+## Advanced Flags
+
+View all flags including experimental options:
+
+```bash
+porf --help all
+```
+
+<Accordion title="All Advanced Flags">
+  <ParamField path="-f" type="flag">
+    Print disassembled Wasm generated from user functions
+  </ParamField>
+
+  <ParamField path="--pgo" type="flag">
+    Enable profile-guided optimization
+  </ParamField>
+
+  <ParamField path="--no-coctc" type="flag">
+    Disable COCTC (cross-object compile-time cache)
+  </ParamField>
+
+  <ParamField path="--cyclone" type="flag">
+    Enable experimental Cyclone optimizer
+  </ParamField>
+
+  <ParamField path="--no-treeshake-wasm-imports" type="flag">
+    Do not treeshake Wasm imports
+  </ParamField>
+
+  <ParamField path="--allocator" type="string" default="chunk">
+    Memory allocator: `oneshot` or `chunk`
+  </ParamField>
+
+  <ParamField path="--exception-mode" type="string" default="stack">
+    Exception handling mode: `lut` or `stack`
+  </ParamField>
+
+  <ParamField path="--fast-length" type="flag">
+    Non-compliant optimization to make `.length` faster
+  </ParamField>
+
+  <ParamField path="--profile-compiler" type="flag">
+    Log general compiler performance (enabled by default when compiling to file)
+  </ParamField>
+
+  <ParamField path="--prng" type="string" default="xorshift128+">
+    PRNG algorithm: `xorshift32+`, `xorshift64+`, `xorshift128+`, `xoroshiro128+`, or `xoshiro128+`
+  </ParamField>
+</Accordion>
+
+## Getting Help
+
+```bash
+# Show basic help
+porf --help
+porf -h
+
+# Show all flags including advanced options
+porf --help all
+
+# Show version
+porf --version
+porf -v
+```
+
+## Running Code
+
+<CodeGroup>
+```bash Execute from file
+porf script.js
+```
+
+```bash Eval expression
+porf -e "console.log('Hello')"
+porf --eval "console.log('Hello')"
+```
+
+```bash Print expression result
+porf -p "2 + 2"
+porf --print "Math.sqrt(16)"
+```
+
+```bash From URL (HTTPS only)
+porf https://example.com/script.js
+```
+</CodeGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Run Command" icon="play" href="/cli/run">
+    Learn about executing JavaScript files
+  </Card>
+  <Card title="Compile to Wasm" icon="cube" href="/cli/wasm">
+    Build WebAssembly binaries
+  </Card>
+  <Card title="Profile Code" icon="chart-line" href="/cli/profile">
+    Analyze performance
+  </Card>
+  <Card title="REPL Mode" icon="terminal" href="/cli/repl">
+    Interactive development
+  </Card>
+</CardGroup>

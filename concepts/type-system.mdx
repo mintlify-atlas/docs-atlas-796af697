@@ -1,0 +1,374 @@
+---
+title: Type System
+description: Understanding Porffor's internal type system including ByteString, i32, f64, and type annotations
+---
+
+Porffor has a unique type system that includes both standard JavaScript types and internal types optimized for performance and memory efficiency.
+
+## JavaScript Types
+
+Porffor supports the standard JavaScript primitive types:
+
+<CodeGroup>
+```javascript Standard Types
+// number (stored as f64)
+let x = 42;
+let y = 3.14;
+
+// boolean
+let flag = true;
+
+// string (UTF-16, 2 bytes per character)
+let str = "hello";
+
+// undefined
+let undef = undefined;
+
+// bigint
+let big = 123n;
+
+// symbol
+let sym = Symbol('key');
+```
+</CodeGroup>
+
+### Type Representation
+
+Internally, types are represented as numeric identifiers defined in `compiler/types.js:8-16`:
+
+```javascript
+export const TYPES = {
+  undefined: 0x00,
+  number: 0x01,
+  boolean: 0x02,
+  string: 0x03 | TYPE_FLAGS.length,
+  bigint: 0x04,
+  symbol: 0x05,
+  function: 0x06,
+  object: 0x07
+};
+```
+
+Each value in Porffor is represented as a pair: `(value, type)` where type is an i32 type identifier.
+
+## Internal Types
+
+Porffor introduces several internal types for performance optimization:
+
+### ByteString
+
+<Warning>
+  The most important internal type. Understanding ByteStrings is crucial for working with Porffor.
+</Warning>
+
+ByteString is an optimized string type that uses **1 byte per character** instead of 2 bytes (UTF-16).
+
+#### When to Use ByteString
+
+ByteStrings are used when a string contains only ASCII/LATIN-1 characters (code points 0-255):
+
+```javascript
+// Regular String (UTF-16, 2 bytes/char)
+let emoji = "hello 👋";  // Contains emoji, must use String
+let chinese = "你好";     // Contains Chinese, must use String
+
+// ByteString (1 byte/char)
+let ascii = "hello";     // ASCII only, can use ByteString
+let url = "https://example.com"; // ASCII, can use ByteString
+```
+
+#### Memory Savings
+
+<Tabs>
+  <Tab title="String">
+    ```javascript
+    let str: string = "hello"; // 5 chars × 2 bytes = 10 bytes
+    ```
+  </Tab>
+  <Tab title="ByteString">
+    ```javascript  
+    let str: bytestring = "hello"; // 5 chars × 1 byte = 5 bytes
+    ```
+  </Tab>
+</Tabs>
+
+<Info>
+  ByteStrings **halve memory usage** for ASCII strings and make operations faster due to less memory access.
+</Info>
+
+#### Implementation Details
+
+From `CONTRIBUTING.md:36-38`:
+
+<Note>
+  Regular strings in Porffor are UTF-16 encoded (2 bytes per character). ByteStrings use 1 byte per character for ASCII/LATIN-1, halving memory usage. Many builtins must be written twice—once for `String` and once for `ByteString`.
+</Note>
+
+### i32
+
+The `i32` type represents a 32-bit integer, primarily used for **pointers**.
+
+<Warning>
+  From `CONTRIBUTING.md:40-42`: Only use `i32` for pointers. It represents the WebAssembly `i32` valtype, which is neither signed nor unsigned—signedness is instruction-dependent.
+</Warning>
+
+```typescript
+// Type definition from compiler/builtins/porffor.d.ts:1
+export type i32 = number;
+
+function example() {
+  // Get pointer to a string
+  let ptr: i32 = Porffor.wasm`local.get ${myString}`;
+  
+  // Use pointer for memory operations
+  let charCode: i32 = Porffor.wasm.i32.load8_u(ptr, 0, 4);
+}
+```
+
+### f64
+
+The `f64` type represents a 64-bit floating-point number (IEEE 754 double):
+
+```typescript
+// Type definition from compiler/builtins/porffor.d.ts:3
+export type f64 = number;
+
+// This is the default valtype in Porffor
+let x: f64 = 3.14159;
+let y: f64 = 42; // Integers are also f64 by default
+```
+
+<Info>
+  By default, Porffor uses `f64` as its valtype. You can change this with `--valtype=i32` to use 32-bit integers instead, but this is experimental.
+</Info>
+
+### i64
+
+The `i64` type represents a 64-bit integer:
+
+```typescript  
+// Type definition from compiler/builtins/porffor.d.ts:2
+export type i64 = number;
+
+// Used for bigint operations and large integers
+let big: i64 = 9007199254740991;
+```
+
+## Object Types
+
+Porffor includes many internal object types registered in `compiler/types.js:43-73`:
+
+```javascript
+// Internal object types
+registerInternalType('Array', ['iterable', 'length']);
+registerInternalType('RegExp');
+registerInternalType('Date');
+registerInternalType('Set', ['iterable']);
+registerInternalType('Map');
+
+// TypedArrays
+registerInternalType('Uint8Array', ['iterable', 'length']);
+registerInternalType('Int32Array', ['iterable', 'length']);
+registerInternalType('Float64Array', ['iterable', 'length']);
+// ... and more
+
+// Error types  
+registerInternalType('Error');
+registerInternalType('TypeError');
+registerInternalType('RangeError');
+// ... and more
+```
+
+## Type Annotations
+
+Porffor can parse and use TypeScript type annotations for optimization.
+
+### Parsing Types
+
+Enable type annotation parsing:
+
+```bash
+porf --parse-types script.ts
+```
+
+<Info>
+  If `--parse-types` is used without specifying a parser, Porffor automatically switches to `@babel/parser` which supports TypeScript syntax.
+</Info>
+
+### Type-Guided Optimization
+
+Use type annotations as compiler hints:
+
+```bash
+porf --parse-types --opt-types script.ts
+```
+
+<CodeGroup>
+```typescript With Type Hints
+// Compiler knows these are numbers, generates optimized code
+function add(a: number, b: number): number {
+  return a + b;
+}
+
+function processString(s: bytestring): i32 {
+  return s.length;
+}
+```
+
+```typescript Without Type Hints
+// Compiler must handle any type, generates generic code  
+function add(a, b) {
+  return a + b; // Could be number, string, etc.
+}
+```
+</CodeGroup>
+
+<Warning>
+  Porffor does **not** type-check your code. Type annotations are purely used as **compiler hints** for optimization. Invalid types won't cause errors at compile time.
+</Warning>
+
+## Type Flags
+
+Types can have flags that indicate properties:
+
+```javascript
+export const TYPE_FLAGS = {
+  parity:    0b10000000,  // ByteString vs String
+  length:    0b01000000,  // Has .length property
+};
+```
+
+For example:
+
+```javascript
+TYPES.string = 0x03 | TYPE_FLAGS.length;     // String has length
+TYPES.bytestring = TYPES.string | TYPE_FLAGS.parity; // ByteString variant
+```
+
+## Working with Types in Built-ins
+
+### Type Checking
+
+From `compiler/builtins/porffor.d.ts:103-104`, use the `Porffor.type()` function:
+
+```typescript
+function myBuiltin(arg: any) {
+  const argType: i32 = Porffor.type(arg);
+  
+  if (argType == Porffor.TYPES.number) {
+    // Handle number
+  }
+  if (argType == Porffor.TYPES.bytestring) {
+    // Handle ByteString
+  }
+}
+```
+
+### Dual String Implementation
+
+Many builtins need both String and ByteString versions:
+
+<CodeGroup>
+```typescript ByteString Version
+// From CONTRIBUTING.md:109-128
+export const __ByteString_prototype_toUpperCase = (_this: bytestring) => {
+  const len: i32 = _this.length;
+
+  let out: bytestring = '';
+  Porffor.wasm.i32.store(out, len, 0, 0);
+
+  let i: i32 = Porffor.wasm`local.get ${_this}`,
+      j: i32 = Porffor.wasm`local.get ${out}`;
+
+  const endPtr: i32 = i + len;
+  while (i < endPtr) {
+    let chr: i32 = Porffor.wasm.i32.load8_u(i++, 0, 4); // 1 byte
+    if (chr >= 97) if (chr <= 122) chr -= 32;
+    Porffor.wasm.i32.store8(j++, chr, 0, 4); // 1 byte
+  }
+
+  return out;
+};
+```
+
+```typescript String Version
+export const __String_prototype_toUpperCase = (_this: string) => {
+  const len: i32 = _this.length;
+
+  let out: string = '';
+  Porffor.wasm.i32.store(out, len, 0, 0);
+
+  let i: i32 = Porffor.wasm`local.get ${_this}`,
+      j: i32 = Porffor.wasm`local.get ${out}`;
+
+  const endPtr: i32 = i + len * 2; // 2 bytes per char!
+  while (i < endPtr) {
+    let chr: i32 = Porffor.wasm.i32.load16_u(i, 0, 4); // 2 bytes
+    i += 2;
+    if (chr >= 97) if (chr <= 122) chr -= 32;
+    Porffor.wasm.i32.store16(j, chr, 0, 4); // 2 bytes  
+    j += 2;
+  }
+
+  return out;
+};
+```
+</CodeGroup>
+
+<Note>
+  The key difference: ByteString uses `load8_u`/`store8` (1 byte), while String uses `load16_u`/`store16` (2 bytes).
+</Note>
+
+## Type Annotation Requirements
+
+When writing Porffor code (especially builtins), from `CONTRIBUTING.md:200`:
+
+<Warning>
+  You **must** use explicit type annotations for variable declarations. This will fail:
+  ```javascript
+  let a = 1; // ❌ Error
+  ```
+  
+  Use this instead:
+  ```javascript
+  let a: number = 1; // ✅ Correct
+  ```
+</Warning>
+
+## Valtype Selection
+
+Choose the default value type for your program:
+
+<Tabs>
+  <Tab title="f64 (default)">
+    ```bash
+    porf script.js
+    # or explicitly:
+    porf --valtype=f64 script.js
+    ```
+    Uses 64-bit floats for all numeric values. Best for general-purpose code.
+  </Tab>
+  <Tab title="i32">
+    ```bash
+    porf --valtype=i32 script.js
+    ```
+    Uses 32-bit integers. Experimental. Better for integer-heavy code.
+  </Tab>
+</Tabs>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Memory Model" href="/concepts/memory-model" icon="memory">
+    Learn how types are stored in memory
+  </Card>
+  <Card title="Writing Built-ins" href="/contributing/writing-builtins" icon="code">
+    Create your own built-in functions
+  </Card>
+  <Card title="Wasm Operations" href="/concepts/memory-model#memory-operations" icon="cube">
+    Use Porffor.wasm for low-level operations
+  </Card>
+  <Card title="Compiler Options" href="/config/compiler-options" icon="sliders">
+    Type-related compiler flags
+  </Card>
+</CardGroup>

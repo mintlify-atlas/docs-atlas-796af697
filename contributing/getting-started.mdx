@@ -1,0 +1,108 @@
+---
+title: Getting Started
+description: Set up your development environment and start contributing to Porffor
+---
+
+Hello! Thanks for your potential interest in contributing to Porffor. This guide will help you set up your development environment and understand the workflow.
+
+## Prerequisites
+
+You should have:
+- Decent JavaScript knowledge
+- Some basic TypeScript (nothing complicated)
+- Low-level understanding (pointers, etc.) is a plus but not required
+- WebAssembly knowledge is helpful but not required
+
+## Setup
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/CanadaHonk/porffor.git
+cd porffor
+```
+
+### 2. Install Dependencies
+
+```bash
+npm install
+```
+
+### 3. Run Porffor
+
+The repo comes with easy alias scripts for Unix and Windows:
+
+**Unix:**
+```bash
+./porf path/to/script.js
+```
+
+**Windows:**
+```cmd
+.\porf path/to/script.js
+```
+
+You can also swap out `node` in the alias to use another runtime:
+- Deno: `deno run -A runtime/index.js ...`
+- Bun: `bun runtime/index.js ...`
+
+Node, Deno, and Bun should all work.
+
+## Precompile Workflow
+
+<Warning>
+**Critical:** If you update any file inside `compiler/builtins`, you **must** precompile for your changes to take effect.
+</Warning>
+
+Run the precompile command:
+
+```bash
+./porf precompile
+```
+
+This compiles the TypeScript built-ins into a format the compiler can use. If you see errors:
+- You might have a syntax error in your code
+- There could be a compiler error with Porffor
+- Feel free to ask for help in [the Porffor Discord](https://discord.gg/6crs9Znx9R)
+
+## Development Workflow
+
+A typical development cycle looks like:
+
+1. **Make changes** to built-in files in `compiler/builtins/`
+2. **Precompile** with `./porf precompile`
+3. **Test** your changes with a sample script
+4. **Run tests** with the Test262 runner (see [Testing](/contributing/testing))
+5. **Commit** your changes (see [Commit Style](/contributing/commit-style))
+
+## Example: Testing Your Setup
+
+Create a simple test file:
+
+```js
+// test.js
+console.log('Hello from Porffor!');
+```
+
+Run it:
+
+```bash
+./porf test.js
+```
+
+You should see the output printed to the console.
+
+## Getting Help
+
+If you have any questions or get stuck:
+
+- Join [the Porffor Discord](https://discord.gg/6crs9Znx9R)
+- Ask anything - the community is friendly and helpful
+- Don't hesitate to ask for help with errors or concepts
+
+## Next Steps
+
+- Learn about [Project Structure](/contributing/project-structure)
+- Start [Writing Built-ins](/contributing/writing-builtins)
+- Understand [Testing](/contributing/testing)
+- Follow [Commit Style](/contributing/commit-style) conventions

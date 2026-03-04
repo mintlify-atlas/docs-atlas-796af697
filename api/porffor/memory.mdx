@@ -1,0 +1,200 @@
+---
+title: Memory Functions
+description: Memory allocation and size management
+---
+
+Porffor provides memory management functions for allocating and tracking WebAssembly memory.
+
+## malloc
+
+Allocate memory in the WebAssembly heap.
+
+```typescript
+Porffor.malloc(bytes?: i32): any
+```
+
+<ParamField path="bytes" type="i32" default="auto">
+  Number of bytes to allocate. When omitted, allocates appropriate size for the context (e.g., empty array, empty object).
+</ParamField>
+
+<ResponseField name="return" type="any">
+  Pointer to the allocated memory region
+</ResponseField>
+
+### Usage
+
+#### Allocate Empty Array
+
+```javascript
+const arr = Porffor.malloc();
+arr.length = 0;
+// arr is now an empty array
+```
+
+#### Allocate Empty Object
+
+```javascript
+const obj = Porffor.malloc();
+// obj is now an empty object
+```
+
+#### Allocate Specific Byte Size
+
+```javascript
+const buffer = Porffor.malloc(512);
+// Allocated 512 bytes of memory
+```
+
+#### String Allocation
+
+```javascript
+const str = Porffor.malloc(512);
+let ptr = Porffor.wasm`local.get ${str}`;
+// Use ptr to write string data
+```
+
+## memorySize
+
+Get the current WebAssembly memory size in bytes.
+
+```typescript
+Porffor.memorySize(): i32
+```
+
+<ResponseField name="return" type="i32">
+  Current memory size in bytes
+</ResponseField>
+
+### Usage
+
+```javascript
+const currentSize = Porffor.memorySize();
+console.log(`Memory: ${currentSize} bytes`);
+
+// Check if more memory is needed
+if (Porffor.memorySize() < requiredSize) {
+  // Allocate more memory
+  const newAllocation = Porffor.malloc(additionalBytes);
+}
+```
+
+### Memory Size Tracking
+
+```javascript
+function trackMemoryUsage() {
+  const before = Porffor.memorySize();
+  
+  // Perform operations
+  const arr = new Array(1000);
+  for (let i = 0; i < 1000; i++) {
+    arr[i] = { value: i };
+  }
+  
+  const after = Porffor.memorySize();
+  const used = after - before;
+  
+  console.log(`Memory used: ${used} bytes`);
+  return used;
+}
+```
+
+## Memory Management Patterns
+
+### Pre-allocating Objects
+
+```javascript
+function createObjectPool(size) {
+  const pool = [];
+  for (let i = 0; i < size; i++) {
+    pool[i] = Porffor.malloc();
+  }
+  return pool;
+}
+
+const objectPool = createObjectPool(100);
+```
+
+### Custom Data Structures
+
+```javascript
+function createFixedArray(capacity) {
+  // Allocate: 4 bytes (length) + capacity * 9 bytes (elements)
+  const bytes = 4 + capacity * 9;
+  const arr = Porffor.malloc(bytes);
+  
+  // Initialize length to 0
+  Porffor.wasm.i32.store(arr, 0, 0, 0);
+  
+  return arr;
+}
+```
+
+### Memory-Efficient String Building
+
+```javascript
+function buildString(parts) {
+  // Calculate total length
+  let totalLength = 0;
+  for (const part of parts) {
+    totalLength += part.length;
+  }
+  
+  // Allocate once: 4 bytes (length) + totalLength bytes (data)
+  const result = Porffor.malloc(4 + totalLength);
+  
+  // Store length
+  Porffor.wasm.i32.store(result, totalLength, 0, 0);
+  
+  // Copy parts
+  let offset = 4;
+  for (const part of parts) {
+    const partPtr = Porffor.wasm`local.get ${part}`;
+    for (let i = 0; i < part.length; i++) {
+      const byte = Porffor.wasm.i32.load8_u(partPtr, 0, 4 + i);
+      Porffor.wasm.i32.store8(result, byte, 0, offset++);
+    }
+  }
+  
+  return result;
+}
+```
+
+## Memory Layout Reference
+
+Porffor allocates memory with specific layouts:
+
+### Dynamic Types
+
+| Type | Header Size | Element Size | Notes |
+|------|-------------|--------------|-------|
+| Array | 4 bytes | 9 bytes/element | Length (u32) + elements |
+| String | 4 bytes | 2 bytes/char | Length (u32) + UTF-16 chars |
+| ByteString | 4 bytes | 1 byte/char | Length (u32) + bytes |
+| Object | 8 bytes | 18 bytes/property | Size (u16) + properties |
+
+### Memory Pages
+
+By default, Porffor uses page size of 16384 bytes (1/4 of standard WebAssembly page):
+
+```javascript
+// Access page size (compile-time constant)
+const pageSize = globalThis.pageSize; // 16384
+
+// Calculate pages needed
+function pagesNeeded(bytes) {
+  return Math.ceil(bytes / pageSize);
+}
+```
+
+## Performance Tips
+
+1. **Pre-allocate when possible**: Allocate memory once instead of multiple small allocations
+2. **Reuse allocations**: Keep a pool of pre-allocated objects
+3. **Batch operations**: Perform multiple memory operations together
+4. **Monitor memory size**: Use `memorySize()` to track growth
+
+## See Also
+
+- [Porffor.wasm](/api/porffor/wasm) - Low-level memory operations
+- [Array Utilities](/api/porffor/array) - Array-specific operations
+- [ByteString Utilities](/api/porffor/bytestring) - String memory operations

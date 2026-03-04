@@ -1,0 +1,459 @@
+---
+title: "Porffor API Reference"
+description: "Complete reference for Porffor's global API including memory management, type system, and low-level utilities"
+---
+
+## Overview
+
+The `Porffor` global object provides low-level APIs for memory management, type inspection, and WebAssembly intrinsics. These APIs are available in all Porffor-compiled code and enable advanced optimizations and fine-grained control.
+
+## Memory Management
+
+### Porffor.malloc()
+
+Allocate memory for objects:
+
+```typescript
+Porffor.malloc(bytes?: i32): any
+```
+
+**Example:**
+```typescript
+// Allocate an array
+const arr: any[] = Porffor.malloc();
+arr.length = 10;
+
+// Allocate with specific size (advanced)
+const buffer: any = Porffor.malloc(1024);
+```
+
+### Porffor.memorySize()
+
+Get the current memory size:
+
+```typescript
+Porffor.memorySize(): i32
+```
+
+Returns the number of WebAssembly memory pages currently allocated.
+
+## WebAssembly Intrinsics
+
+### Porffor.wasm
+
+Inline WebAssembly template tag:
+
+```typescript
+Porffor.wasm`...instructions...`
+```
+
+See [Inline WebAssembly](/advanced/inline-wasm) for complete documentation.
+
+### Porffor.wasm.i32
+
+Integer memory operations:
+
+```typescript
+// Load operations
+Porffor.wasm.i32.load(pointer: any, align: i32, offset: i32): i32
+Porffor.wasm.i32.load16_u(pointer: any, align: i32, offset: i32): i32
+Porffor.wasm.i32.load8_u(pointer: any, align: i32, offset: i32): i32
+
+// Store operations
+Porffor.wasm.i32.store(pointer: any, value: i32, align: i32, offset: i32): i32
+Porffor.wasm.i32.store16(pointer: any, value: i32, align: i32, offset: i32): i32
+Porffor.wasm.i32.store8(pointer: any, value: i32, align: i32, offset: i32): i32
+
+// Create constant
+Porffor.wasm.i32.const(value: i32): i32
+```
+
+**Example - String manipulation:**
+```typescript
+// Store character in ByteString (8-bit)
+const ptr: i32 = Porffor.wasm`local.get ${str}`;
+Porffor.wasm.i32.store8(ptr, 65, 0, 4); // Write 'A'
+
+// Store character in String (16-bit)
+Porffor.wasm.i32.store16(ptr, 65, 0, 4); // Write 'A'
+
+// Load character from ByteString
+const charCode: i32 = Porffor.wasm.i32.load8_u(ptr, 0, 4);
+
+// Load character from String
+const charCode: i32 = Porffor.wasm.i32.load16_u(ptr, 0, 4);
+
+// Store object length
+Porffor.wasm.i32.store(ptr, length, 0, 0);
+```
+
+<Note>
+The last two arguments (align, offset) are required WebAssembly parameters. For most operations, use `0, 4` for character operations and `0, 0` for length operations.
+</Note>
+
+### Porffor.wasm.f64
+
+Floating-point memory operations:
+
+```typescript
+Porffor.wasm.f64.load(pointer: any, align: i32, offset: i32): f64
+Porffor.wasm.f64.store(pointer: any, value: f64, align: i32, offset: i32): f64
+Porffor.wasm.f64.eq(a: f64, b: f64): boolean
+```
+
+**Example:**
+```typescript
+const ptr: i32 = Porffor.wasm`local.get ${arr}`;
+Porffor.wasm.f64.store(ptr, 3.14159, 0, 0);
+const value: f64 = Porffor.wasm.f64.load(ptr, 0, 0);
+```
+
+## Type System
+
+### Porffor.type()
+
+Get the runtime type of a value:
+
+```typescript
+Porffor.type(x: any): i32
+```
+
+**Example:**
+```typescript
+if (Porffor.type(value) == Porffor.TYPES.string) {
+  // value is a string
+}
+```
+
+### Porffor.TYPES
+
+Type constants:
+
+```typescript
+const TYPES = {
+  number: i32,
+  boolean: i32,
+  string: i32,
+  undefined: i32,
+  object: i32,
+  function: i32,
+  symbol: i32,
+  bigint: i32,
+  
+  // Internal types
+  array: i32,
+  regexp: i32,
+  bytestring: i32,
+  date: i32,
+  set: i32,
+  // ... more types
+}
+```
+
+**Example:**
+```typescript
+const checkType = (val: any) => {
+  const t = Porffor.type(val);
+  
+  if (t == Porffor.TYPES.number) return 'number';
+  if (t == Porffor.TYPES.string) return 'string';
+  if (t == Porffor.TYPES.bytestring) return 'bytestring';
+  if (t == Porffor.TYPES.array) return 'array';
+  
+  return 'other';
+};
+```
+
+### Porffor.typeName()
+
+Get the name of a type:
+
+```typescript
+Porffor.typeName(type: i32): bytestring
+```
+
+**Example:**
+```typescript
+const t = Porffor.type(value);
+console.log(Porffor.typeName(t)); // "string", "number", etc.
+```
+
+## Object Operations
+
+### Porffor.object.isObject()
+
+Check if a value is an object:
+
+```typescript
+Porffor.object.isObject(arg: any): boolean
+Porffor.object.isObjectOrNull(arg: any): boolean
+Porffor.object.isObjectOrSymbol(arg: any): boolean
+```
+
+### Porffor.object.get/set
+
+Direct object property access:
+
+```typescript
+Porffor.object.get(obj: any, key: any): any
+Porffor.object.set(obj: object, key: any, value: any): any
+Porffor.object.define(obj: object, key: any, value: any, flags: i32): void
+Porffor.object.delete(obj: object, key: any): boolean
+```
+
+### Porffor.object.lookup()
+
+Find property entry pointer:
+
+```typescript
+Porffor.object.lookup(obj: object, target: any): i32
+```
+
+### Porffor.object.preventExtensions()
+
+Prevent object extensions:
+
+```typescript
+Porffor.object.preventExtensions(obj: object): void
+Porffor.object.isInextensible(obj: object): boolean
+```
+
+### Property Descriptors
+
+```typescript
+// Check/set property flags
+Porffor.object.overrideAllFlags(obj: object, overrideOr: i32, overrideAnd: i32): void
+Porffor.object.checkAllFlags(obj: object, dataAnd: i32, accessorAnd: i32, dataExpected: i32, accessorExpected: i32): boolean
+Porffor.object.isEnumerable(entryPtr: i32): boolean
+```
+
+### Accessor Properties
+
+```typescript
+Porffor.object.packAccessor(get: any, set: any): f64
+Porffor.object.accessorGet(entryPtr: i32): Function
+Porffor.object.accessorSet(entryPtr: i32): Function
+```
+
+## Array Operations
+
+### Porffor.array.fastPush()
+
+Optimized array push:
+
+```typescript
+Porffor.array.fastPush(arr: any[], el: any): i32
+```
+
+**Example:**
+```typescript
+const arr: any[] = [];
+Porffor.array.fastPush(arr, 'hello');
+Porffor.array.fastPush(arr, 42);
+```
+
+### Porffor.array.fastIndexOf()
+
+Optimized array indexOf:
+
+```typescript
+Porffor.array.fastIndexOf(arr: any[], el: any): i32
+```
+
+### Porffor.array.fastRemove()
+
+Remove element at index:
+
+```typescript
+Porffor.array.fastRemove(arr: any[], i: i32): void
+```
+
+## String Operations
+
+### Porffor.bytestring
+
+ByteString manipulation utilities:
+
+```typescript
+Porffor.bytestring.appendStr(str: bytestring, appendage: bytestring): i32
+Porffor.bytestring.appendChar(str: bytestring, char: i32): i32
+Porffor.bytestring.append2Char(str: bytestring, char1: i32, char2: i32): i32
+Porffor.bytestring.appendPadNum(str: bytestring, num: number, len: number): i32
+```
+
+**Example:**
+```typescript
+let result: bytestring = '';
+Porffor.bytestring.appendStr(result, 'Hello');
+Porffor.bytestring.appendChar(result, 32); // space
+Porffor.bytestring.appendStr(result, 'World');
+```
+
+### Template Tags
+
+Create typed strings:
+
+```typescript
+Porffor.s(...args: any): string        // UTF-16 string
+Porffor.bs(...args: any): bytestring   // ByteString
+```
+
+## Number Operations
+
+### Porffor.number.getExponent()
+
+Get the exponent of a float:
+
+```typescript
+Porffor.number.getExponent(v: f64): i32
+```
+
+## Function Metadata
+
+### Porffor.funcLut
+
+Access function metadata:
+
+```typescript
+Porffor.funcLut.flags(func: Function): i32
+Porffor.funcLut.length(func: Function): i32
+Porffor.funcLut.name(func: Function): bytestring
+```
+
+**Example:**
+```typescript
+function myFunc(a: number, b: number) { return a + b; }
+
+console.log(Porffor.funcLut.name(myFunc));   // "myFunc"
+console.log(Porffor.funcLut.length(myFunc)); // 2
+```
+
+## Utilities
+
+### Porffor.clone()
+
+Clone an object:
+
+```typescript
+Porffor.clone(source: any, destination: any): void
+```
+
+### Porffor.print()
+
+Low-level print functions:
+
+```typescript
+Porffor.print(x: any): i32
+Porffor.printStatic(str: string): void
+```
+
+### Porffor.randomByte()
+
+Generate a random byte:
+
+```typescript
+Porffor.randomByte(): i32
+```
+
+Returns a random integer between 0 and 255.
+
+## Boolean Logic
+
+### Fast Boolean Operations
+
+Non-short-circuiting boolean operations:
+
+```typescript
+Porffor.fastOr(...args: any): boolean   // Evaluates all conditions
+Porffor.fastAnd(...args: any): boolean  // Evaluates all conditions
+```
+
+**Example:**
+```typescript
+// Regular || short-circuits, this doesn't
+if (Porffor.fastOr(
+  value < 0,
+  value > 100,
+  !Number.isInteger(value)
+)) {
+  throw new RangeError('Invalid value');
+}
+```
+
+<Note>
+Unlike `||` and `&&`, these functions evaluate ALL arguments before returning. Use for performance when you know all checks are cheap.
+</Note>
+
+## Set Operations
+
+### Porffor.set
+
+Low-level Set operations:
+
+```typescript
+Porffor.set.read(ptr: any, index: number): i32
+Porffor.set.write(ptr: any, index: number, value: any): boolean
+```
+
+## ArrayBuffer Operations
+
+### Porffor.arraybuffer.detach()
+
+Detach an ArrayBuffer:
+
+```typescript
+Porffor.arraybuffer.detach(buffer: any): void
+```
+
+## Type Definitions
+
+Porffor provides special type aliases:
+
+```typescript
+type i32 = number;      // 32-bit integer (use for pointers)
+type i64 = number;      // 64-bit integer
+type f64 = number;      // 64-bit float (standard number)
+type bytestring = string; // ASCII/Latin-1 optimized string
+```
+
+## ECMA-262 Utilities
+
+Spec-compliant conversion functions:
+
+```typescript
+ecma262.ToIntegerOrInfinity(argument: unknown): number
+ecma262.ToIndex(value: unknown): number
+ecma262.ToString(argument: unknown): bytestring
+ecma262.ToNumber(argument: unknown): number
+ecma262.ToNumeric(argument: unknown): number
+ecma262.ToPropertyKey(argument: unknown): any
+ecma262.IsConstructor(argument: unknown): boolean
+```
+
+**Example:**
+```typescript
+export const __Array_prototype_at = (_this: any[], index: any) => {
+  const len: i32 = _this.length;
+  index = ecma262.ToIntegerOrInfinity(index);
+  
+  const relativeIndex: i32 = index;
+  const k: i32 = relativeIndex >= 0 ? relativeIndex : len + relativeIndex;
+  
+  if (k < 0 || k >= len) return undefined;
+  return _this[k];
+};
+```
+
+## Best Practices
+
+1. **Type Checking**: Always use `Porffor.type()` for runtime type checks
+2. **Memory Safety**: Be careful with raw pointer operations
+3. **Performance**: Use `fast*` operations when appropriate
+4. **ByteStrings**: Prefer ByteString for ASCII-only text (50% memory savings)
+5. **Const Correctness**: Use `i32` type for pointer variables
+
+## Related Documentation
+
+- [Inline WebAssembly](/advanced/inline-wasm) - Using `Porffor.wasm`
+- [Custom Built-ins](/advanced/custom-builtins) - Writing built-in functions
+- [Type System](/concepts/type-system) - Understanding Porffor types

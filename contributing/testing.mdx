@@ -1,0 +1,333 @@
+---
+title: Testing
+description: Running Test262 and debugging your contributions
+---
+
+Porffor uses the [Test262](https://github.com/tc39/test262) official ECMAScript test suite to validate JavaScript compliance.
+
+## Initial Setup
+
+<Warning>
+**First time only:** Clone the Test262 repository into Porffor's test262 directory.
+</Warning>
+
+```bash
+cd test262
+git clone https://github.com/tc39/test262.git
+cd ..
+```
+
+This only needs to be done once. The test262 directory will contain the test runner scripts, and the cloned repository will have all the tests.
+
+## Running Tests
+
+### Run All Tests
+
+```bash
+node test262
+```
+
+<Warning>
+**Performance Warning:** This will consume most of your system resources and take 1-30 minutes depending on your machine specs and thread count.
+</Warning>
+
+### Specify Thread Count
+
+Control how many threads to use:
+
+```bash
+node test262 --threads=8
+```
+
+You can also create a `.threads` file in the `test262/` directory:
+
+```bash
+echo "8" > test262/.threads
+```
+
+If neither is specified, Porffor uses a cautious default: `min(12, cpu_count) - 4`.
+
+<Note>
+For tuning advice on optimal thread count for your machine, ask in the Discord!
+</Note>
+
+### Run Specific Tests
+
+Test a specific directory or file:
+
+```bash
+# Test all Date built-ins
+node test262 built-ins/Date
+
+# Test Array methods
+node test262 built-ins/Array
+
+# Test a specific file (automatically adds --log-errors)
+node test262 built-ins/String/prototype/trim/this-value.js
+```
+
+## Understanding Test Results
+
+### Emoji Summary
+
+The main output you'll see:
+
+```
+🧪 50005 | 🤠 7007 (-89) | ❌ 1914 (-32) | 💀 13904 (-61) | 📝 23477 (-120) | ⏰ 2 | 🏗 2073 (+302) | 💥 1628
+```
+
+Let's decode this:
+
+| Emoji | Meaning | Description |
+|-------|---------|-------------|
+| 🧪 | Total | Total number of tests run |
+| 🤠 | Pass | Tests that passed |
+| ❌ | Fail | Tests that failed (wrong output) |
+| 💀 | Runtime Error | Error thrown during execution |
+| 📝 | Todo | Expected error/failure |
+| ⏰ | Timeout | Test took too long |
+| 🏗️ | Wasm Compile Error | Failed to compile to Wasm |
+| 💥 | Compile Error | Failed to compile |
+
+### Understanding Diffs
+
+Numbers in parentheses show change from the last commit with test262 data:
+
+```
+🤠 7007 (-89)  // 89 fewer passes than last commit - ⚠️ Bad!
+❌ 1914 (-32)  // 32 fewer failures - ✅ Good!
+💀 13904 (-61) // 61 fewer runtime errors - ✅ Good!
+```
+
+**What you want to see:**
+- 🤠 Passes **UP** ⬆️
+- ❌ Failures **DOWN** ⬇️  
+- 💀 Runtime errors **DOWN** ⬇️
+- 🏗️💥 Compile errors **DOWN** ⬇️
+
+It's fine if errors shift between categories, as long as passes increase and total errors decrease.
+
+### New Passes and Failures
+
+The test runner logs new passes and failures:
+
+```
+New passes:
+  ✅ built-ins/String/prototype/trim/basic.js
+  ✅ built-ins/String/prototype/trimStart/basic.js
+
+New failures:
+  ❌ built-ins/Array/prototype/map/edge-case.js
+```
+
+<Warning>
+**Important:** Overall passes can increase while other tests regress. Always check new failures!
+</Warning>
+
+Some tests may have been false positives before - review the diff carefully.
+
+## Debugging Flags
+
+### `--log-errors`
+
+Log errors from individual tests:
+
+```bash
+node test262 built-ins/String --log-errors
+```
+
+This automatically sets threads to 1 and shows detailed error output.
+
+### `--debug-asserts`
+
+Show expected vs actual values for assertion failures (experimental):
+
+```bash
+node test262 built-ins/Array/prototype/map --debug-asserts
+```
+
+### `--plain-results`
+
+Use plain text instead of emojis:
+
+```bash
+node test262 --plain-results
+```
+
+Output:
+```
+total: 50005 | pass: 7007 (-89) | fail: 1914 (-32) | ...
+```
+
+### `--minimal`
+
+Minimal output (implies `--result-only`):
+
+```bash
+node test262 --minimal
+```
+
+## Debugging Workflow
+
+Here's a typical debugging workflow:
+
+### 1. Run Specific Tests
+
+Narrow down to the area you're working on:
+
+```bash
+node test262 built-ins/String/prototype/toUpperCase
+```
+
+### 2. Check for Failures
+
+Look at the new failures list to see what broke.
+
+### 3. Log Errors
+
+Get detailed error output:
+
+```bash
+node test262 built-ins/String/prototype/toUpperCase/specific-test.js --log-errors
+```
+
+### 4. Debug Your Code
+
+Examine the error, fix the issue in your built-in.
+
+### 5. Precompile and Re-test
+
+```bash
+./porf precompile
+node test262 built-ins/String/prototype/toUpperCase/specific-test.js
+```
+
+### 6. Run Full Test Suite
+
+Once the specific tests pass, run the full suite:
+
+```bash
+node test262 --threads=8
+```
+
+## Common Patterns
+
+### Testing Your New Built-in
+
+```bash
+# 1. Write the built-in in compiler/builtins/
+# 2. Precompile
+./porf precompile
+
+# 3. Test the relevant Test262 section
+node test262 built-ins/String/prototype/yourMethod --log-errors
+
+# 4. Fix issues and repeat
+./porf precompile
+node test262 built-ins/String/prototype/yourMethod
+```
+
+### Checking for Regressions
+
+```bash
+# Run full suite before changes
+node test262 --threads=12 > before.txt
+
+# Make your changes
+./porf precompile
+
+# Run full suite after changes  
+node test262 --threads=12 > after.txt
+
+# Compare results
+diff before.txt after.txt
+```
+
+### Testing Multiple Implementations
+
+If you implement both `String` and `ByteString` versions:
+
+```bash
+# Test String methods
+node test262 built-ins/String/prototype/toUpperCase --log-errors
+
+# Both String and ByteString use the same tests
+# so this validates both implementations
+```
+
+## Performance Tips
+
+1. **Use specific paths** - Don't run the full suite if you only changed String methods
+2. **Increase threads** - More threads = faster results (but more CPU usage)
+3. **Use `.threads` file** - Set it once and forget it
+4. **Single test debugging** - When debugging a specific test, it auto-adds `--log-errors`
+
+## Interpreting Results
+
+When you run the full test suite:
+
+### ✅ Good PR
+
+```
+🤠 7096 (+89)   // 89 more passes
+❌ 1882 (-32)   // 32 fewer failures  
+💀 13843 (-61)  // 61 fewer runtime errors
+```
+
+### ⚠️ Needs Review
+
+```
+🤠 7050 (+43)   // 43 more passes
+❌ 1920 (+6)    // But 6 NEW failures - what broke?
+💀 13880 (-37)  // Runtime errors improved
+```
+
+Check the new failures list - you may have fixed some tests but broken others.
+
+### ❌ Problem
+
+```
+🤠 7007 (0)     // No change in passes
+❌ 1914 (0)     // No change in failures
+🏗️ 2100 (+27)  // New compile errors - something's wrong
+```
+
+You likely introduced a compiler bug. Check the error messages.
+
+## Common Issues
+
+### "Cannot find module" Error
+
+You forgot to clone Test262:
+
+```bash
+cd test262
+git clone https://github.com/tc39/test262.git
+```
+
+### All Tests Timing Out
+
+Thread count too high for your machine:
+
+```bash
+node test262 --threads=4  # Try fewer threads
+```
+
+### Tests Passing But Feature Not Working
+
+Test262 may not have comprehensive coverage for that feature. Test manually:
+
+```js
+// test.js
+console.log("test".toUpperCase());
+```
+
+```bash
+./porf test.js
+```
+
+## Next Steps
+
+- Follow [Commit Style](/contributing/commit-style) when committing your changes
+- Review [Writing Built-ins](/contributing/writing-builtins) for implementation tips
+- Check [Project Structure](/contributing/project-structure) to understand the codebase

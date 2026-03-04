@@ -1,0 +1,135 @@
+---
+title: Introduction to Porffor
+description: A from-scratch ahead-of-time JavaScript compiler that compiles to WebAssembly, C, or native binaries
+---
+
+Porffor is an experimental **ahead-of-time (AOT)** JavaScript/TypeScript compiler that compiles directly to WebAssembly, C, or native binaries. Built from scratch with a radically different approach to JavaScript execution, Porffor offers blazing fast performance for the features it supports.
+
+<Note>
+Porffor is a research project exploring new approaches to JavaScript compilation. While it has significant limitations, what it can do, it does exceptionally well.
+</Note>
+
+## What Makes Porffor Different
+
+Porffor takes a unique approach to JavaScript execution that sets it apart from traditional engines:
+
+<CardGroup cols={2}>
+  <Card title="100% AOT Compiled" icon="rocket">
+    No JIT compilation or interpreter. Your code is compiled ahead-of-time directly to WebAssembly or native binaries.
+  </Card>
+  
+  <Card title="Zero Runtime" icon="feather">
+    No constant runtime or preluded code. The compiled output contains only what your code needs.
+  </Card>
+  
+  <Card title="Minimal Imports" icon="cube">
+    Only essential I/O operations are imported. Everything else is compiled into your binary.
+  </Card>
+  
+  <Card title="From Scratch" icon="hammer">
+    Built entirely from the ground up (except the parser). Porffor generates final Wasm binaries itself without relying on tools like Binaryen.
+  </Card>
+</CardGroup>
+
+## Key Features
+
+### Multiple Compilation Targets
+
+Compile your JavaScript to different formats depending on your needs:
+
+- **WebAssembly** - Generate standalone `.wasm` files
+- **C** - Compile to C code using Porffor's 2c compiler
+- **Native Binaries** - Create executable binaries for your platform
+- **REPL** - Interactive JavaScript execution
+
+### TypeScript Support
+
+Porffor can parse and compile TypeScript code with type annotations:
+
+```bash
+porf --parse-types script.ts
+```
+
+Use `--opt-types` to enable optimizations based on type hints, making your compiled code even faster.
+
+### Performance
+
+For the features it supports, Porffor delivers exceptional performance:
+
+<Info>
+Porffor is typically **blazingly fast** compared to interpreters and engines running without JIT. With compiler optimizations and typed input, it can even compete with JIT-enabled engines, especially when compiled to native binaries.
+</Info>
+
+## Architecture
+
+Porffor is primarily built from scratch with minimal dependencies:
+
+- **Parser**: Uses [Acorn](https://github.com/acornjs/acorn) (with support for Babel, Meriyah, and Hermes parsers)
+- **Compiler**: Custom-built code generator that produces WebAssembly bytecode
+- **Assembler**: Creates spec-compliant Wasm modules from scratch
+- **2c**: Porffor's own WebAssembly-to-C compiler for native binary generation
+
+## Current Limitations
+
+As an experimental research project, Porffor has some important limitations:
+
+<Warning>
+- **Limited async support** - `Promise` and `await` have known bugs
+- **No cross-scope variables** - Variables cannot be accessed between scopes (except arguments and globals)
+- **No dynamic evaluation** - `eval()` and `Function()` are not supported due to AOT compilation
+- **Incomplete API coverage** - Many JavaScript APIs are not yet implemented
+</Warning>
+
+## Versioning System
+
+Porffor uses a unique versioning scheme. For example, version `0.61.10`:
+
+1. **0** - Major version (always 0 until Porffor is production-ready)
+2. **61** - Minor version (Test262 pass percentage, rounded half-down)
+3. **10** - Micro version (build number for that minor version)
+
+This means version `0.61.10` passes 61% of Test262 tests and is the 10th build at that pass rate.
+
+## Use Cases
+
+While Porffor is still experimental, it offers some compelling benefits:
+
+<CardGroup cols={2}>
+  <Card title="Safety" icon="shield">
+    Written in JavaScript (memory-safe) and compiles to WebAssembly (fully sandboxed), providing multiple layers of security.
+  </Card>
+  
+  <Card title="Native Binaries" icon="binary">
+    Compile JavaScript directly to standalone executables for your platform.
+  </Card>
+  
+  <Card title="Inline Wasm" icon="code">
+    Write inline WebAssembly for performance-critical sections or low-level operations.
+  </Card>
+  
+  <Card title="SIMD Operations" icon="gauge-high">
+    Potential for SIMD and other low-level optimizations not available in traditional JavaScript.
+  </Card>
+</CardGroup>
+
+## WebAssembly Proposals
+
+Porffor uses only widely-implemented WebAssembly proposals to ensure maximum compatibility:
+
+- **Multi-value** (required)
+- **Non-trapping float-to-int conversions** (required)
+- **Bulk memory operations** (optional)
+- **Exception handling** (optional, only for errors)
+- **Tail calls** (opt-in, disabled by default)
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Install Porffor and set up your environment
+  </Card>
+  
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Get started with your first Porffor program
+  </Card>
+</CardGroup>

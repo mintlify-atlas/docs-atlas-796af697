@@ -1,0 +1,263 @@
+---
+title: Porffor.wasm
+description: Low-level WebAssembly operations and memory access
+---
+
+The `Porffor.wasm` API provides direct access to WebAssembly instructions and memory operations within compiled code.
+
+## Inline WebAssembly
+
+Use `Porffor.wasm` with template literals to write inline WebAssembly instructions:
+
+```javascript
+Porffor.wasm`local.get ${variableName}`
+Porffor.wasm`i32.const 42`
+Porffor.wasm`f64.add`
+```
+
+### Example: Direct Memory Access
+
+```javascript
+function readMemoryValue(ptr) {
+  const value = Porffor.wasm`
+    local.get ${ptr}
+    i32.load 0 0
+  `;
+  return value;
+}
+```
+
+## i32 Operations
+
+Integer (i32) memory and arithmetic operations.
+
+### i32.load
+
+```typescript
+Porffor.wasm.i32.load(pointer: any, align: i32, offset: i32): i32
+```
+
+<ParamField path="pointer" type="any" required>
+  Memory pointer to read from
+</ParamField>
+
+<ParamField path="align" type="i32" required>
+  Memory alignment (power of 2)
+</ParamField>
+
+<ParamField path="offset" type="i32" required>
+  Byte offset from pointer
+</ParamField>
+
+<ResponseField name="return" type="i32">
+  32-bit integer value at the memory location
+</ResponseField>
+
+### i32.store
+
+```typescript
+Porffor.wasm.i32.store(pointer: any, value: i32, align: i32, offset: i32): i32
+```
+
+<ParamField path="pointer" type="any" required>
+  Memory pointer to write to
+</ParamField>
+
+<ParamField path="value" type="i32" required>
+  Value to write
+</ParamField>
+
+<ParamField path="align" type="i32" required>
+  Memory alignment
+</ParamField>
+
+<ParamField path="offset" type="i32" required>
+  Byte offset from pointer
+</ParamField>
+
+### i32.load8_u
+
+```typescript
+Porffor.wasm.i32.load8_u(pointer: any, align: i32, offset: i32): i32
+```
+
+Load unsigned 8-bit value (byte) from memory.
+
+### i32.store8
+
+```typescript
+Porffor.wasm.i32.store8(pointer: any, value: i32, align: i32, offset: i32): i32
+```
+
+Store 8-bit value (byte) to memory.
+
+### i32.load16_u
+
+```typescript
+Porffor.wasm.i32.load16_u(pointer: any, align: i32, offset: i32): i32
+```
+
+Load unsigned 16-bit value from memory.
+
+### i32.store16
+
+```typescript
+Porffor.wasm.i32.store16(pointer: any, value: i32, align: i32, offset: i32): i32
+```
+
+Store 16-bit value to memory.
+
+### i32.const
+
+```typescript
+Porffor.wasm.i32.const(value: i32): i32
+```
+
+Create a constant 32-bit integer value.
+
+## f64 Operations
+
+Floating-point (f64) memory operations.
+
+### f64.load
+
+```typescript
+Porffor.wasm.f64.load(pointer: any, align: i32, offset: i32): f64
+```
+
+Load 64-bit floating-point value from memory.
+
+### f64.store
+
+```typescript
+Porffor.wasm.f64.store(pointer: any, value: f64, align: i32, offset: i32): f64
+```
+
+Store 64-bit floating-point value to memory.
+
+### f64.eq
+
+```typescript
+Porffor.wasm.f64.eq(a: f64, b: f64): boolean
+```
+
+Compare two f64 values for equality.
+
+## Usage Examples
+
+### Reading String Length
+
+```javascript
+function getStringLength(str) {
+  // String length is stored at offset 0 as u32
+  const ptr = Porffor.wasm`local.get ${str}`;
+  return Porffor.wasm.i32.load(ptr, 0, 0);
+}
+```
+
+### Writing to Byte Array
+
+```javascript
+function writeByteString(ptr, str) {
+  const length = str.length;
+  
+  // Store length at offset 0
+  Porffor.wasm.i32.store(ptr, length, 0, 0);
+  
+  // Store bytes starting at offset 4
+  for (let i = 0; i < length; i++) {
+    Porffor.wasm.i32.store8(ptr, str.charCodeAt(i), 0, 4 + i);
+  }
+}
+```
+
+### Direct Memory Comparison
+
+```javascript
+function comparePointers(a, b) {
+  // Check if pointers are equal
+  if (Porffor.wasm`local.get ${a}` == Porffor.wasm`local.get ${b}`) {
+    return true;
+  }
+  
+  // Compare values at pointers
+  const aVal = Porffor.wasm.i32.load(a, 0, 0);
+  const bVal = Porffor.wasm.i32.load(b, 0, 0);
+  return aVal == bVal;
+}
+```
+
+### SIMD Vector Operations
+
+```javascript
+function vectorAdd(aPtr, bPtr, len) {
+  Porffor.wasm`
+    ;; Load v128 chunks while length >= 16
+    local.get ${len}
+    i32.const 16
+    i32.ge_s
+    if 64
+      loop 64
+        local.get ${aPtr}
+        v128.load 0 0
+        
+        local.get ${bPtr}
+        v128.load 0 0
+        
+        v128.add
+        
+        local.get ${aPtr}
+        v128.store 0 0
+        
+        ;; Increment pointers and decrement length
+        local.get ${aPtr}
+        i32.const 16
+        i32.add
+        local.set ${aPtr}
+        
+        local.get ${bPtr}
+        i32.const 16
+        i32.add
+        local.set ${bPtr}
+        
+        local.get ${len}
+        i32.const 16
+        i32.sub
+        local.tee ${len}
+        i32.const 16
+        i32.ge_s
+        br_if 0
+      end
+    end
+  `;
+}
+```
+
+## Memory Layout
+
+Porffor uses specific memory layouts for different types:
+
+### String/ByteString
+```
+[0-3]  u32 length
+[4+]   char data (u8 for bytestring, u16 for string)
+```
+
+### Array
+```
+[0-3]  u32 length
+[4+]   elements (9 bytes each: 8 bytes value + 1 byte type)
+```
+
+### Object
+```
+[0-1]  u16 property count
+[2-7]  reserved
+[8+]   properties (18 bytes each)
+```
+
+## See Also
+
+- [Memory Functions](/api/porffor/memory) - High-level memory allocation
+- [Type Functions](/api/porffor/types) - Type checking and names
+- [ByteString Utilities](/api/porffor/bytestring) - String operations

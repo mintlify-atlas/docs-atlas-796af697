@@ -1,0 +1,599 @@
+---
+title: "Debugging Compiled Code"
+description: "Debug JavaScript, WebAssembly, and native binaries compiled with Porffor"
+---
+
+## Overview
+
+Debugging AOT-compiled code differs from debugging interpreted JavaScript. Porffor provides several tools and techniques to help diagnose issues in compiled WebAssembly and native binaries.
+
+## Debug Mode
+
+The `-d` flag enables debug mode, which includes additional information in compiled output:
+
+```bash
+porf -d input.js
+```
+
+**Debug mode enables:**
+- Function and variable names in Wasm
+- Debug logging during compilation
+- Source location information
+- Preserved symbol names
+- Better error messages
+
+### Using Debug Mode with Different Targets
+
+<Tabs>
+  <Tab title="Run">
+    ```bash
+    porf -d input.js
+    ```
+    Enables debug logging and better error messages during execution.
+  </Tab>
+  
+  <Tab title="Wasm">
+    ```bash
+    porf wasm -d input.js output.wasm
+    ```
+    Includes names and debug info in the WebAssembly module.
+  </Tab>
+  
+  <Tab title="Native">
+    ```bash
+    porf native -d input.js output
+    ```
+    Preserves debug symbols in the native binary (not stripped).
+  </Tab>
+  
+  <Tab title="C">
+    ```bash
+    porf c -d input.js output.c
+    ```
+    Adds comments and readable names in generated C code.
+  </Tab>
+</Tabs>
+
+## Disassembling WebAssembly
+
+### View Generated Instructions
+
+Use the `-f` flag to print disassembled Wasm for your functions:
+
+```bash
+porf -f input.js
+```
+
+This shows the WebAssembly instructions generated for each function with debug annotations.
+
+### View Specific Function
+
+To view a specific function's Wasm:
+
+```bash
+porf -f=functionName input.js
+```
+
+### Example Output
+
+```javascript example.js
+function add(a, b) {
+  return a + b;
+}
+
+console.log(add(5, 3));
+```
+
+Disassemble:
+
+```bash
+porf -f=add -d example.js
+```
+
+Example output:
+```
+funcs:
+  add (index: 0)
+    local.get 0  # a
+    local.get 1  # b
+    f64.add      # a + b
+    return
+```
+
+### Using --disassemble Flag
+
+For detailed disassembly:
+
+```bash
+porf --disassemble input.js
+```
+
+This provides:
+- Full instruction listing
+- Local variable information
+- Type information
+- Call graph details
+
+## The Debug Command
+
+<Warning>
+  The `debug` command is very experimental. Expect rough edges and bugs.
+</Warning>
+
+Porffor includes an experimental source-level debugger:
+
+```bash
+porf debug input.js
+```
+
+### Debug Command Features
+
+**Stepping:**
+- **Step Over**: Execute current line, skip function calls
+- **Step In**: Enter function calls
+- **Step Out**: Execute until current function returns
+- **Resume**: Continue execution
+
+**Breakpoints:**
+- Set breakpoints on specific lines
+- Execution pauses when breakpoint is hit
+
+**Inspection:**
+- View current line
+- See call stack
+- Console output in dedicated panel
+
+### Debug Command Limitations
+
+- **No variable inspection**: Cannot view variable values
+- **Limited expression evaluation**: Cannot evaluate expressions at breakpoints
+- **Function-level granularity**: Stepping is per-line, not per-expression
+- **No watch expressions**: Cannot track specific variables
+
+<Info>
+  The debugger modifies your source code by injecting profiling calls, so debugging output may differ from normal execution.
+</Info>
+
+## Debugging Strategies
+
+### Adding Console Logging
+
+The most reliable debugging technique:
+
+```javascript
+function compute(values) {
+  console.log('compute called with', values.length, 'values');
+  
+  let sum = 0;
+  for (let i = 0; i < values.length; i++) {
+    sum += values[i];
+    console.log('i:', i, 'value:', values[i], 'sum:', sum);
+  }
+  
+  console.log('final sum:', sum);
+  return sum;
+}
+```
+
+Compile and run:
+
+```bash
+porf compute.js
+```
+
+### Using performance.now() for Timing
+
+Profile sections of code:
+
+```javascript
+function processData(data) {
+  const t0 = performance.now();
+  
+  const step1Result = step1(data);
+  console.log('Step 1:', performance.now() - t0, 'ms');
+  
+  const t1 = performance.now();
+  const step2Result = step2(step1Result);
+  console.log('Step 2:', performance.now() - t1, 'ms');
+  
+  const t2 = performance.now();
+  const final = step3(step2Result);
+  console.log('Step 3:', performance.now() - t2, 'ms');
+  
+  console.log('Total:', performance.now() - t0, 'ms');
+  return final;
+}
+```
+
+### Bisecting Problems
+
+Isolate issues by progressively commenting out code:
+
+<Steps>
+<Step title="Verify basic structure">
+  Start with minimal working version:
+  ```javascript
+  function process(data) {
+    console.log('Starting');
+    // Comment out everything else first
+    return data;
+  }
+  ```
+</Step>
+
+<Step title="Add code incrementally">
+  Uncomment sections one at a time:
+  ```javascript
+  function process(data) {
+    console.log('Starting');
+    
+    // Uncomment first step
+    const step1 = transform(data);
+    console.log('Step 1 done');
+    
+    // Uncomment second step
+    // const step2 = validate(step1);
+    // console.log('Step 2 done');
+    
+    return step1;
+  }
+  ```
+</Step>
+
+<Step title="Find the failing section">
+  When code breaks, the last uncommented section is the problem area.
+</Step>
+</Steps>
+
+### Comparing with Node.js
+
+Test behavior in Node.js to verify correctness:
+
+```bash
+# Run with Node.js
+node input.js
+
+# Run with Porffor
+porf input.js
+```
+
+Differences indicate:
+- Porffor bugs
+- Unsupported features
+- Different runtime behavior
+
+## Debugging Native Binaries
+
+### Using GDB (Linux/macOS)
+
+Compile with debug symbols:
+
+```bash
+porf native -d input.js output
+```
+
+Run with GDB:
+
+```bash
+gdb ./output
+```
+
+Basic GDB commands:
+```gdb
+(gdb) run              # Start program
+(gdb) break main       # Set breakpoint
+(gdb) continue         # Continue after breakpoint
+(gdb) step             # Step into
+(gdb) next             # Step over
+(gdb) print variable   # Print variable value
+(gdb) backtrace        # Show call stack
+```
+
+### Using LLDB (macOS)
+
+```bash
+lldb ./output
+```
+
+Basic LLDB commands:
+```lldb
+(lldb) run
+(lldb) breakpoint set --name main
+(lldb) continue
+(lldb) step
+(lldb) next
+(lldb) frame variable
+(lldb) bt
+```
+
+### Inspecting Generated C Code
+
+Generate C code to understand what's happening:
+
+```bash
+porf c -d input.js output.c
+```
+
+Open `output.c` to see:
+- How functions are compiled
+- Memory management
+- Type conversions
+- Control flow
+
+This helps understand unexpected behavior.
+
+## Debugging WebAssembly
+
+### Using wasm2wat
+
+Convert Wasm to text format:
+
+```bash
+porf wasm input.js output.wasm
+wasm2wat output.wasm -o output.wat
+```
+
+Inspect `output.wat` to see:
+- Function structure
+- Local variables
+- Instruction sequence
+- Imports and exports
+
+### Browser DevTools
+
+Some browsers support WebAssembly debugging:
+
+1. Load Wasm module in browser
+2. Open DevTools
+3. Find Wasm in Sources panel
+4. Set breakpoints
+5. Inspect stack and memory
+
+<Note>
+  Porffor Wasm doesn't use WASI, so running in browser requires custom import setup.
+</Note>
+
+## Common Issues and Solutions
+
+<AccordionGroup>
+  <Accordion title="Undefined or null reference errors">
+    Check variable initialization:
+    ```javascript
+    // Problem
+    let data;
+    console.log(data.length);  // Error: undefined
+    
+    // Solution
+    let data = [];
+    console.log(data.length);  // Works
+    ```
+    
+    Or add guards:
+    ```javascript
+    if (data && data.length > 0) {
+      console.log(data[0]);
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Type-related errors">
+    Porffor is strict about types in some cases:
+    ```javascript
+    // Problem
+    function add(a, b) {
+      return a + b;
+    }
+    add('5', '3');  // May produce unexpected result
+    
+    // Solution: Use explicit types
+    function add(a, b) {
+      return Number(a) + Number(b);
+    }
+    ```
+    
+    Or use TypeScript:
+    ```typescript
+    function add(a: number, b: number): number {
+      return a + b;
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Scope errors">
+    Porffor has limited scope support:
+    ```javascript
+    // Problem: nested scope
+    function outer() {
+      let x = 1;
+      function inner() {
+        return x + 1;  // May fail
+      }
+      return inner();
+    }
+    
+    // Solution: use parameters
+    function outer() {
+      let x = 1;
+      return inner(x);
+    }
+    function inner(x) {
+      return x + 1;
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Memory/performance issues">
+    Profile with the profile command:
+    ```bash
+    porf profile input.js
+    ```
+    
+    Look for:
+    - Functions called most frequently
+    - Functions taking the most time
+    - Unexpected memory allocations
+    
+    Add logging for memory usage:
+    ```javascript
+    console.log('Memory:', Porffor.memorySize());
+    ```
+  </Accordion>
+
+  <Accordion title="Compilation fails">
+    Enable debug mode to see detailed error:
+    ```bash
+    porf -d input.js
+    ```
+    
+    Common causes:
+    - Unsupported syntax (eval, Function constructor)
+    - Complex async/await patterns
+    - Scope issues
+    - Parser errors
+    
+    Try simplifying code:
+    ```bash
+    # Try different parser
+    porf --parser=@babel/parser input.js
+    
+    # Disable optimization
+    porf -O0 input.js
+    
+    # Check TypeScript syntax
+    porf -t input.ts
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## The Profile Command
+
+The `profile` command provides detailed performance information:
+
+```bash
+porf profile input.js
+```
+
+### Profile Output
+
+Shows for each function:
+- **Call count**: How many times called
+- **Total time**: Cumulative execution time
+- **Average time**: Mean time per call
+- **Percentage**: Portion of total execution time
+
+### Example Profile Session
+
+```javascript example.js
+function fibonacci(n) {
+  if (n <= 1) return n;
+  return fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+function main() {
+  const results = [];
+  for (let i = 0; i < 30; i++) {
+    results.push(fibonacci(i));
+  }
+  return results;
+}
+
+main();
+```
+
+Profile:
+
+```bash
+porf profile example.js
+```
+
+Output shows:
+- `main` called once, moderate time
+- `fibonacci` called thousands of times (recursive), most total time
+- Identifies performance bottleneck
+
+### Using Profile Data
+
+Use profiling to:
+1. **Find hot functions**: Which functions consume most time
+2. **Identify call patterns**: How many times functions are called
+3. **Guide optimization**: Focus on expensive functions
+4. **Measure improvements**: Before/after optimization comparison
+
+## Debugging Checklist
+
+<Steps>
+<Step title="Start with debug mode">
+  Enable debug output:
+  ```bash
+  porf -d input.js
+  ```
+</Step>
+
+<Step title="Add console logging">
+  Log at key points:
+  ```javascript
+  console.log('Checkpoint:', variable);
+  ```
+</Step>
+
+<Step title="Isolate the problem">
+  Comment out code sections to find the issue.
+</Step>
+
+<Step title="Compare with Node.js">
+  Verify expected behavior:
+  ```bash
+  node input.js  # Expected output
+  porf input.js  # Actual output
+  ```
+</Step>
+
+<Step title="Inspect generated code">
+  For Wasm:
+  ```bash
+  porf -f input.js
+  ```
+  
+  For native:
+  ```bash
+  porf c -d input.js output.c
+  cat output.c
+  ```
+</Step>
+
+<Step title="Use the debugger if needed">
+  For step-by-step execution:
+  ```bash
+  porf debug input.js
+  ```
+</Step>
+</Steps>
+
+## Getting Help
+
+If you're stuck:
+
+1. **Check documentation**: Review guides and API reference
+2. **Simplify code**: Create minimal reproduction
+3. **Try different flags**: Test with `-O0`, different parsers, etc.
+4. **Ask for help**: Join the [Porffor Discord](https://discord.gg/6crs9Znx9R)
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Profiling" icon="chart-line" href="/cli/profile">
+    Detailed performance analysis
+  </Card>
+  
+  <Card title="Optimization" icon="gauge-high" href="/guides/optimization-strategies">
+    Make your code faster
+  </Card>
+  
+  <Card title="TypeScript" icon="code" href="/guides/using-typescript">
+    Better type safety and debugging
+  </Card>
+  
+  <Card title="Contributing" icon="github" href="/contributing/getting-started">
+    Report bugs and contribute fixes
+  </Card>
+</CardGroup>

@@ -1,0 +1,360 @@
+---
+title: porf debug
+description: Interactive debugger for JavaScript source code
+---
+
+Debug JavaScript code with an interactive terminal-based debugger.
+
+<Warning>
+Very experimental WIP feature - functionality is limited and may change
+</Warning>
+
+## Usage
+
+```bash
+porf debug [flags] script.js
+```
+
+## Examples
+
+<CodeGroup>
+```bash Basic debugging
+porf debug script.js
+```
+
+```bash Debug TypeScript
+porf debug --parse-types script.ts
+```
+</CodeGroup>
+
+## Arguments
+
+<ParamField path="script.js" type="string" required>
+  JavaScript or TypeScript file to debug
+</ParamField>
+
+## Debugger Interface
+
+When launched, the debugger shows:
+
+```
+porffor debugger: script.js@15    main->processData
+
+   12 | function processData(arr) {
+   13 |   let sum = 0;
+   14 |   for (let i = 0; i < arr.length; i++) {
+ ► 15 |     sum += arr[i];
+   16 |   }
+   17 |   return sum;
+   18 | }
+
+┌─ console ────────────────────────┐
+│                                  │
+│                                  │
+│                                  │
+└──────────────────────────────────┘
+```
+
+## Interface Components
+
+### Header
+
+Shows current execution state:
+
+```
+porffor debugger: script.js@15    main->processData
+                  ^^^^^^^^ ^^      ^^^^^^^^^^^^^^^^
+                  file    line     call stack
+```
+
+### Code View
+
+Displays source code with:
+- Line numbers
+- Current line indicator (`►`)
+- Surrounding context
+- Breakpoint markers
+
+### Console Panel
+
+Shows program output:
+- `console.log()` output
+- `console.error()` output  
+- Program results
+
+### Call Stack
+
+Displays current function call chain:
+
+```
+main->processData->helper
+```
+
+## Debugger Commands
+
+<AccordionGroup>
+  <Accordion title="Resume">
+    Continue execution until next breakpoint or completion
+    
+    **Shortcut**: `F5` or `Continue` button
+  </Accordion>
+  
+  <Accordion title="Step Over">
+    Execute current line and pause at next line
+    
+    **Shortcut**: `F10` or `Step Over` button
+    
+    Does not step into function calls
+  </Accordion>
+  
+  <Accordion title="Step In">
+    Step into function calls
+    
+    **Shortcut**: `F11` or `Step In` button
+    
+    Pauses at first line of called function
+  </Accordion>
+  
+  <Accordion title="Step Out">
+    Continue until current function returns
+    
+    **Shortcut**: `Shift+F11` or `Step Out` button
+    
+    Resumes execution until function exit
+  </Accordion>
+</AccordionGroup>
+
+## Breakpoints
+
+Set breakpoints during debugging:
+
+1. Navigate to desired line
+2. Toggle breakpoint
+3. Execution pauses when breakpoint is reached
+
+<Note>
+Breakpoint functionality is implemented through the debugger UI. The exact mechanism is still being refined.
+</Note>
+
+## Example Session
+
+<Steps>
+  <Step title="Start debugger">
+    ```bash
+    porf debug script.js
+    ```
+    
+    Debugger pauses before first line
+  </Step>
+  
+  <Step title="Step through code">
+    Press `Step Over` to execute line by line
+    
+    Watch variables and output in console panel
+  </Step>
+  
+  <Step title="Step into function">
+    Press `Step In` when on function call
+    
+    Debugger enters function body
+  </Step>
+  
+  <Step title="Set breakpoint">
+    Navigate to line and toggle breakpoint
+    
+    Press `Resume` to run until breakpoint
+  </Step>
+  
+  <Step title="Inspect state">
+    View console output and call stack
+    
+    Verify program behavior
+  </Step>
+</Steps>
+
+## Code Instrumentation
+
+The debugger works by:
+
+1. **Parsing source**: Reading your JavaScript/TypeScript
+2. **Injecting hooks**: Adding profiling calls at each line and function
+3. **Executing**: Running instrumented code
+4. **Intercepting**: Pausing at hooks and showing UI
+
+## TypeScript Support
+
+```bash
+porf debug --parse-types script.ts
+porf debug -t script.ts
+```
+
+Debugger displays TypeScript source with type annotations.
+
+## Console Output
+
+Program output appears in the console panel:
+
+```javascript
+console.log('Debug message');
+console.error('Error message');
+```
+
+Both appear in the console section of the debugger UI.
+
+## Call Stack Navigation
+
+The call stack shows function call hierarchy:
+
+```
+main
+main->processArray
+main->processArray->sortItems
+```
+
+- **Deepest** function is rightmost
+- **Caller** chain shows execution path
+- Updates as you step through code
+
+## Limitations
+
+<Warning>
+The debugger is very experimental and has significant limitations:
+</Warning>
+
+- Limited variable inspection
+- No watch expressions
+- No conditional breakpoints
+- No call stack navigation (view only)
+- Terminal UI may have rendering issues
+- Not all JavaScript features supported
+- May crash or behave unexpectedly
+
+## When to Use Debug Mode
+
+<AccordionGroup>
+  <Accordion title="Understanding code flow">
+    Step through unfamiliar code to understand execution order
+  </Accordion>
+  
+  <Accordion title="Finding crashes">
+    Identify exactly where errors occur
+  </Accordion>
+  
+  <Accordion title="Validating logic">
+    Verify conditional branches and loops work correctly
+  </Accordion>
+  
+  <Accordion title="Inspecting simple state">
+    View console output at specific points
+  </Accordion>
+</AccordionGroup>
+
+## Alternative Debugging
+
+For more robust debugging:
+
+<CodeGroup>
+```bash Add logging
+# Add console.log statements
+porf script.js
+```
+
+```bash Use -d flag
+# Debug compilation errors
+porf -d script.js
+```
+
+```bash Profile performance
+# Understand which functions are slow
+porf profile script.js
+```
+</CodeGroup>
+
+## Troubleshooting
+
+### Debugger won't start
+
+```bash
+# Check if file exists
+ls -l script.js
+
+# Try running without debugger first
+porf script.js
+```
+
+### UI rendering issues
+
+- Resize terminal window
+- Try different terminal emulator
+- Check terminal supports ANSI colors
+
+### Breakpoints not working
+
+- Ensure line has executable code
+- Try stepping manually with Step Over
+- Check if feature is fully implemented
+
+### Crashes during debugging
+
+- Report issue on GitHub
+- Try simpler code first
+- Use alternative debugging methods
+
+## Debugger Architecture
+
+Underneath, the debugger:
+
+1. Injects profiling hooks (`profile1`, `profile2`)
+2. Hooks fire before/after each line and function
+3. UI library (Byg) renders interface
+4. User input controls execution flow
+5. Console output is captured and displayed
+
+## Future Improvements
+
+Planned enhancements:
+
+- Variable inspection and watch expressions
+- Conditional breakpoints
+- Call stack navigation
+- Memory inspection
+- Expression evaluation
+- Better UI/UX
+
+## Providing Feedback
+
+Since this feature is experimental:
+
+1. Report bugs on GitHub
+2. Describe what works/doesn't work
+3. Share use cases and needs
+4. Contribute improvements
+
+## Comparison with Other Debuggers
+
+| Feature | porf debug | Node.js debugger | Browser DevTools |
+|---------|-----------|------------------|------------------|
+| Interactive | ✓ | ✓ | ✓ |
+| Breakpoints | Limited | ✓ | ✓ |
+| Variable inspection | ✗ | ✓ | ✓ |
+| Watch expressions | ✗ | ✓ | ✓ |
+| Call stack | View only | ✓ | ✓ |
+| Terminal UI | ✓ | ✓ | ✗ |
+| Maturity | Experimental | Stable | Stable |
+
+## Related Tools
+
+<CardGroup cols={2}>
+  <Card title="Profile" icon="chart-line" href="/cli/profile">
+    Performance profiling
+  </Card>
+  <Card title="Run with -d" icon="flag" href="/cli/run">
+    Debug compilation issues
+  </Card>
+  <Card title="REPL" icon="terminal" href="/cli/repl">
+    Interactive exploration
+  </Card>
+  <Card title="Overview" icon="book" href="/cli/overview">
+    All CLI commands
+  </Card>
+</CardGroup>

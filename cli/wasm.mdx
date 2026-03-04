@@ -1,0 +1,276 @@
+---
+title: porf wasm
+description: Compile JavaScript to WebAssembly binary
+---
+
+Compile JavaScript or TypeScript files to standalone WebAssembly binaries.
+
+## Usage
+
+```bash
+porf wasm [flags] input.js output.wasm
+```
+
+## Examples
+
+<CodeGroup>
+```bash Basic compilation
+porf wasm script.js output.wasm
+```
+
+```bash With optimization
+porf wasm -O3 script.js output.wasm
+```
+
+```bash TypeScript input
+porf wasm --parse-types script.ts output.wasm
+```
+
+```bash Debug build
+porf wasm -d script.js debug.wasm
+```
+</CodeGroup>
+
+## Arguments
+
+<ParamField path="input.js" type="string" required>
+  JavaScript or TypeScript source file to compile
+</ParamField>
+
+<ParamField path="output.wasm" type="string" required>
+  Output WebAssembly binary file path
+</ParamField>
+
+## Compilation Flags
+
+<ParamField path="-On" type="flag">
+  Optimization level (0-3)
+  
+  - `-O0`: No optimizations, fastest compilation
+  - `-O1`: Basic optimizations (default)
+  - `-O2`: Advanced optimizations (partial evaluation)
+  - `-O3`: Maximum optimizations
+  
+  ```bash
+  porf wasm -O3 script.js output.wasm
+  ```
+</ParamField>
+
+<ParamField path="-d" type="flag">
+  Include debug information in output
+  
+  - Preserves function and variable names
+  - Enables debug logs
+  - Larger binary size
+  
+  ```bash
+  porf wasm -d script.js debug.wasm
+  ```
+</ParamField>
+
+<ParamField path="--valtype" type="string" default="f64">
+  Value type for numbers: `i32` or `f64`
+  
+  ```bash
+  porf wasm --valtype=i32 script.js output.wasm
+  ```
+</ParamField>
+
+## TypeScript Support
+
+<ParamField path="-t" type="flag">
+  Force TypeScript parsing
+</ParamField>
+
+<ParamField path="--parse-types" type="flag">
+  Enable TypeScript type annotation parsing
+</ParamField>
+
+<ParamField path="--opt-types" type="flag">
+  Use type annotations for optimization hints
+  
+  ```bash
+  porf wasm --parse-types --opt-types script.ts output.wasm
+  ```
+</ParamField>
+
+## Advanced Options
+
+<ParamField path="--parser" type="string" default="acorn">
+  JavaScript parser: `acorn`, `@babel/parser`, `meriyah`, `hermes-parser`
+</ParamField>
+
+<ParamField path="--module" type="flag">
+  Parse input as ES module
+</ParamField>
+
+<ParamField path="--secure" type="flag">
+  Enable secure mode (disable unsafe features like FFI)
+</ParamField>
+
+<ParamField path="--cyclone" type="flag">
+  Enable experimental Cyclone optimizer for aggressive constant evaluation
+</ParamField>
+
+<ParamField path="--pgo" type="flag">
+  Enable profile-guided optimization
+</ParamField>
+
+<ParamField path="--profile-compiler" type="flag">
+  Log compiler performance metrics (enabled by default when compiling to file)
+</ParamField>
+
+## Output Examples
+
+<CodeGroup>
+```bash Successful compilation
+$ porf wasm script.js output.wasm
+compiled in 142.35ms
+```
+
+```bash With optimization levels
+$ porf wasm -O0 script.js output.wasm
+compiled in 89.12ms
+
+$ porf wasm -O3 script.js output.wasm
+compiled in 256.78ms
+```
+
+```bash Debug build
+$ porf wasm -d script.js debug.wasm
+compiled in 165.43ms
+```
+</CodeGroup>
+
+## Wasm Proposals Used
+
+Porffor-generated WebAssembly uses these proposals:
+
+- **Multi-value** (required) - Functions returning multiple values
+- **Non-trapping float-to-int conversions** (required) - Safe number conversions
+- **Bulk memory operations** (optional) - Efficient memory operations
+- **Exception handling** (optional) - Error handling support
+- **Tail calls** (opt-in, off by default) - Tail call optimization
+
+## Binary Size Optimization
+
+<CodeGroup>
+```bash Minimal size
+porf wasm -O3 script.js output.wasm
+```
+
+```bash Size vs debug info
+# Production: smallest size
+porf wasm -O3 script.js output.wasm
+
+# Development: includes names and debug info
+porf wasm -d -O0 script.js debug.wasm
+```
+</CodeGroup>
+
+## Using the Output
+
+<Warning>
+Porffor does not currently use a standard import format like WASI, so generated Wasm binaries require Porffor's runtime imports to function.
+</Warning>
+
+The generated `.wasm` file is a spec-compliant WebAssembly module but requires specific imports for I/O operations.
+
+### Example: Loading in Node.js
+
+```javascript
+import fs from 'node:fs';
+
+const wasmBuffer = fs.readFileSync('output.wasm');
+const wasmModule = await WebAssembly.instantiate(wasmBuffer, {
+  // Provide required imports for I/O
+});
+
+wasmModule.instance.exports.main();
+```
+
+<Note>
+For standalone executables, use [`porf native`](/cli/native) instead to compile to native binaries.
+</Note>
+
+## Inspecting Output
+
+<CodeGroup>
+```bash View disassembly
+# Use -f flag to print disassembled Wasm
+porf wasm -f script.js output.wasm
+```
+
+```bash Check binary with external tools
+# wasm-objdump (from WABT)
+wasm-objdump -x output.wasm
+
+# wasm2wat (convert to text format)
+wasm2wat output.wasm -o output.wat
+```
+</CodeGroup>
+
+## Troubleshooting
+
+### Compilation Errors
+
+```bash
+# Enable debug mode for detailed error messages
+porf wasm -d script.js output.wasm
+```
+
+### Large Binary Size
+
+```bash
+# Use maximum optimization
+porf wasm -O3 script.js output.wasm
+
+# Remove unused imports (on by default with -O1+)
+porf wasm -O2 script.js output.wasm
+```
+
+### Runtime Errors
+
+```bash
+# Create debug build to preserve names
+porf wasm -d script.js debug.wasm
+
+# Test execution first
+porf script.js  # Run before compiling
+```
+
+## Performance Comparison
+
+<CodeGroup>
+```bash Quick compilation
+porf wasm -O0 script.js output.wasm
+# Fastest compile time, larger output
+```
+
+```bash Balanced
+porf wasm -O1 script.js output.wasm
+# Good compile time, good output size
+```
+
+```bash Maximum optimization
+porf wasm -O3 --cyclone script.js output.wasm
+# Slower compile time, smallest output
+```
+</CodeGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Native Compilation" icon="microchip" href="/cli/native">
+    Compile to standalone executables
+  </Card>
+  <Card title="C Output" icon="code" href="/cli/c">
+    Generate C source code
+  </Card>
+  <Card title="Profile Performance" icon="chart-line" href="/cli/profile">
+    Analyze compiled code performance
+  </Card>
+  <Card title="Lambda Deployment" icon="aws" href="/cli/lambda">
+    Deploy to AWS Lambda
+  </Card>
+</CardGroup>

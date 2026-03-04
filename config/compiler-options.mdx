@@ -1,0 +1,299 @@
+---
+title: Compiler Options
+description: Complete reference for Porffor compiler flags and options
+---
+
+Porffor provides a wide range of compiler options to control optimization, parsing, memory allocation, and runtime behavior.
+
+## Core Options
+
+### Debug Mode
+
+<ParamField path="-d" type="flag">
+  Enable debug mode. Includes function names in generated Wasm and enables debug logging.
+  
+  ```bash
+  porf -d script.js
+  ```
+</ParamField>
+
+### Module Parsing
+
+<ParamField path="--module" type="flag">
+  Parse input as an ES module instead of a script.
+  
+  ```bash
+  porf --module app.js
+  ```
+</ParamField>
+
+### Secure Mode
+
+<ParamField path="--secure" type="flag">
+  Enable secure mode. Errors on unsafe Porffor features like FFI.
+  
+  ```bash
+  porf --secure untrusted.js
+  ```
+</ParamField>
+
+## Memory & Allocation
+
+### Allocator
+
+<ParamField path="--allocator" type="string" default="chunk">
+  Select the memory allocator algorithm.
+  
+  **Options:**
+  - `chunk` (default) - Chunk-based allocator with dynamic growth
+  - `oneshot` - One-shot allocator, faster for short-lived programs (used in Lambda)
+  
+  ```bash
+  porf --allocator=oneshot script.js
+  ```
+  
+  The chunk allocator grows memory in configurable chunks (see `--allocator-chunks`).
+</ParamField>
+
+<ParamField path="--allocator-chunks" type="number" default="16">
+  Number of Wasm pages (64KB each) to allocate per chunk when using the chunk allocator.
+  
+  ```bash
+  porf --allocator-chunks=32 script.js
+  ```
+  
+  **Source reference:** `source/compiler/builtins.js:1046`
+</ParamField>
+
+### Page Size
+
+<ParamField path="--page-size" type="number" default="16384">
+  Internal page size for memory allocation. Default is 16384 (65536 / 4).
+  
+  ```bash
+  porf --page-size=8192 script.js
+  ```
+  
+  **Source reference:** `source/compiler/index.js:80`
+</ParamField>
+
+## Exception Handling
+
+<ParamField path="--exception-mode" type="string" default="stack">
+  Exception handling mode to use.
+  
+  **Options:**
+  - `stack` (default) - Stack-based exception handling
+  - `lut` - Look-up table based exception handling
+  
+  ```bash
+  porf --exception-mode=lut script.js
+  ```
+  
+  The `lut` mode is used by precompile for built-in functions. The `stack` mode passes exception values on the stack.
+  
+  **Source reference:** `source/compiler/codegen.js:5499`
+</ParamField>
+
+<ParamField path="--wasm-exceptions" type="boolean" default="true">
+  Enable or disable Wasm exception handling proposal.
+  
+  ```bash
+  porf --no-wasm-exceptions script.js
+  ```
+</ParamField>
+
+## Random Number Generation
+
+<ParamField path="--prng" type="string" default="xorshift128+">
+  Select the pseudo-random number generator algorithm for `Math.random()`.
+  
+  **Options:**
+  - `xorshift32+`
+  - `xorshift64+`
+  - `xorshift128+` (default)
+  - `xoroshiro128+`
+  - `xoshiro128+`
+  
+  ```bash
+  porf --prng=xoshiro128+ script.js
+  ```
+  
+  Different algorithms offer different trade-offs between speed and randomness quality. The default `xorshift128+` provides a good balance.
+  
+  **Source reference:** `source/compiler/builtins.js:617-852`
+</ParamField>
+
+## Valtype
+
+<ParamField path="--valtype" type="string" default="f64">
+  Primary value type for Wasm operations.
+  
+  **Options:**
+  - `f64` (default) - 64-bit floating point
+  - `i32` - 32-bit integer (not well supported)
+  
+  ```bash
+  porf --valtype=i32 script.js
+  ```
+  
+  <Warning>
+  Using `i32` is not well supported and may cause issues. The default `f64` is recommended.
+  </Warning>
+  
+  **Source reference:** `source/runtime/index.js:64`
+</ParamField>
+
+## Output & Analysis
+
+### Disassembly
+
+<ParamField path="-f" type="flag | string">
+  Print disassembled Wasm generated from user functions.
+  
+  ```bash
+  # Disassemble all functions
+  porf -f script.js
+  
+  # Disassemble specific function
+  porf -f=functionName script.js
+  ```
+  
+  **Source reference:** `source/compiler/index.js:18`
+</ParamField>
+
+<ParamField path="--opt-funcs" type="flag">
+  Display function disassembly after optimization.
+  
+  ```bash
+  porf --opt-funcs script.js
+  ```
+</ParamField>
+
+### Benchmarking
+
+<ParamField path="-t" type="flag">
+  Print timing information for compilation and execution.
+  
+  ```bash
+  porf -t script.js
+  ```
+</ParamField>
+
+<ParamField path="-b" type="flag">
+  Print Wasm binary size.
+  
+  ```bash
+  porf -b script.js
+  ```
+</ParamField>
+
+<ParamField path="--profile-compiler" type="flag">
+  Log general compiler performance. Enabled by default when compiling to a file.
+  
+  ```bash
+  porf --profile-compiler script.js
+  ```
+</ParamField>
+
+### Builtin Analysis
+
+<ParamField path="--builtin-tree" type="flag | string">
+  Display tree of builtin function dependencies.
+  
+  ```bash
+  # Show all builtin dependencies
+  porf --builtin-tree script.js
+  
+  # Show dependencies for specific builtin
+  porf --builtin-tree=Array.prototype.map script.js
+  ```
+</ParamField>
+
+<ParamField path="--compile-alloc-log" type="flag">
+  Log memory allocation details during compilation.
+  
+  ```bash
+  porf --compile-alloc-log script.js
+  ```
+  
+  **Source reference:** `source/compiler/index.js:208`
+</ParamField>
+
+## Wasm Import/Export
+
+<ParamField path="--treeshake-wasm-imports" type="boolean" default="true">
+  Treeshake (remove) unused Wasm imports.
+  
+  ```bash
+  porf --no-treeshake-wasm-imports script.js
+  ```
+</ParamField>
+
+<ParamField path="--passive-data" type="boolean" default="true">
+  Use passive Wasm data segments.
+  
+  ```bash
+  porf --no-passive-data script.js
+  ```
+  
+  Automatically disabled when compiling to C/native.
+</ParamField>
+
+## Advanced Options
+
+### Tail Call Optimization
+
+<ParamField path="--tail-call" type="flag">
+  Enable tail call optimization using Wasm tail call proposal.
+  
+  ```bash
+  porf --tail-call script.js
+  ```
+  
+  <Warning>
+  The tail call proposal is not widely implemented across Wasm runtimes.
+  </Warning>
+  
+  **Source reference:** `source/compiler/opt.js:10`
+</ParamField>
+
+### Wasm Optimizer
+
+<ParamField path="--wasm-opt" type="flag">
+  Run wasm-opt on generated Wasm binary.
+  
+  ```bash
+  porf --wasm-opt script.js output.wasm
+  ```
+  
+  Requires `wasm-opt` to be installed and available in PATH.
+  
+  **Source reference:** `source/compiler/index.js:215`
+</ParamField>
+
+### COCTC
+
+<ParamField path="--coctc" type="boolean" default="true">
+  Enable Cross-Object Compile-Time Cache.
+  
+  ```bash
+  porf --no-coctc script.js
+  ```
+</ParamField>
+
+### Closures
+
+<ParamField path="--closures" type="boolean" default="true">
+  Enable closure support.
+  
+  ```bash
+  porf --no-closures script.js
+  ```
+</ParamField>
+
+## See Also
+
+- [Optimization Levels](/config/optimization-levels) - Optimization level flags
+- [Parser Options](/config/parsers) - Parser selection and configuration
+- [TypeScript Support](/config/typescript-support) - TypeScript-specific options

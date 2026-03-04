@@ -1,0 +1,439 @@
+---
+title: Global Functions
+description: Global utility functions and constructors
+---
+
+Porffor implements standard JavaScript global functions and constructors.
+
+## Type Constructors
+
+### Number
+
+Convert values to numbers or create Number objects.
+
+```javascript
+Number(value: any): number | NumberObject
+```
+
+<ParamField path="value" type="any">
+  Value to convert to a number
+</ParamField>
+
+#### Usage
+
+```javascript
+// Convert to number
+const num1 = Number('42');      // 42
+const num2 = Number('3.14');    // 3.14
+const num3 = Number(true);      // 1
+const num4 = Number(false);     // 0
+const num5 = Number(null);      // 0
+const num6 = Number(undefined); // NaN
+
+// Create Number object
+const obj = new Number(42);
+console.log(typeof obj);        // 'object'
+console.log(obj.valueOf());     // 42
+```
+
+### String
+
+Convert values to strings or create String objects.
+
+```javascript
+String(value: any): string | StringObject
+```
+
+<ParamField path="value" type="any">
+  Value to convert to a string
+</ParamField>
+
+#### Usage
+
+```javascript
+// Convert to string
+const str1 = String(42);        // '42'
+const str2 = String(true);      // 'true'
+const str3 = String(null);      // 'null'
+const str4 = String(undefined); // 'undefined'
+const str5 = String([1,2,3]);   // '1,2,3'
+
+// Create String object
+const obj = new String('hello');
+console.log(typeof obj);        // 'object'
+console.log(obj.valueOf());     // 'hello'
+```
+
+### Boolean
+
+Convert values to booleans or create Boolean objects.
+
+```javascript
+Boolean(value: any): boolean | BooleanObject
+```
+
+<ParamField path="value" type="any">
+  Value to convert to a boolean
+</ParamField>
+
+#### Usage
+
+```javascript
+// Convert to boolean
+const bool1 = Boolean(1);        // true
+const bool2 = Boolean(0);        // false
+const bool3 = Boolean('hello');  // true
+const bool4 = Boolean('');       // false
+const bool5 = Boolean(null);     // false
+const bool6 = Boolean({});       // true
+
+// Create Boolean object
+const obj = new Boolean(true);
+console.log(typeof obj);         // 'object'
+console.log(obj.valueOf());      // true
+```
+
+## Parsing Functions
+
+### parseInt
+
+Parse a string to an integer.
+
+```javascript
+parseInt(string: string, radix?: number): number
+```
+
+<ParamField path="string" type="string" required>
+  String to parse
+</ParamField>
+
+<ParamField path="radix" type="number" default="10">
+  Base for parsing (2-36)
+</ParamField>
+
+#### Usage
+
+```javascript
+// Decimal
+parseInt('42');           // 42
+parseInt('42.7');         // 42 (fractional part ignored)
+parseInt('  42  ');       // 42 (whitespace trimmed)
+
+// Different bases
+parseInt('1010', 2);      // 10 (binary)
+parseInt('10', 8);        // 8 (octal)
+parseInt('2a', 16);       // 42 (hexadecimal)
+parseInt('z', 36);        // 35 (base 36)
+
+// Invalid inputs
+parseInt('hello');        // NaN
+parseInt('12abc');        // 12 (stops at non-digit)
+```
+
+### parseFloat
+
+Parse a string to a floating-point number.
+
+```javascript
+parseFloat(string: string): number
+```
+
+<ParamField path="string" type="string" required>
+  String to parse
+</ParamField>
+
+#### Usage
+
+```javascript
+parseFloat('3.14');       // 3.14
+parseFloat('3.14159');    // 3.14159
+parseFloat('  2.5  ');    // 2.5
+parseFloat('10');         // 10
+parseFloat('1e3');        // 1000
+parseFloat('1.5e2');      // 150
+
+// Invalid inputs
+parseFloat('hello');      // NaN
+parseFloat('3.14abc');    // 3.14 (stops at non-numeric)
+```
+
+## Type Checking Functions
+
+### isNaN
+
+Determine if a value is NaN.
+
+```javascript
+isNaN(value: any): boolean
+```
+
+<ParamField path="value" type="any" required>
+  Value to check
+</ParamField>
+
+#### Usage
+
+```javascript
+isNaN(NaN);           // true
+isNaN('hello');       // true (coerces to NaN)
+isNaN(undefined);     // true (coerces to NaN)
+isNaN({});            // true (coerces to NaN)
+
+isNaN(42);            // false
+isNaN('42');          // false (coerces to 42)
+isNaN(true);          // false (coerces to 1)
+```
+
+### isFinite
+
+Determine if a value is a finite number.
+
+```javascript
+isFinite(value: any): boolean
+```
+
+<ParamField path="value" type="any" required>
+  Value to check
+</ParamField>
+
+#### Usage
+
+```javascript
+isFinite(42);         // true
+isFinite(0);          // true
+isFinite(-42);        // true
+isFinite('42');       // true (coerces to 42)
+
+isFinite(Infinity);   // false
+isFinite(-Infinity);  // false
+isFinite(NaN);        // false
+isFinite('hello');    // false (coerces to NaN)
+```
+
+## URI Functions
+
+### encodeURI
+
+Encode a URI by escaping special characters.
+
+```javascript
+encodeURI(uri: string): string
+```
+
+<ParamField path="uri" type="string" required>
+  URI to encode
+</ParamField>
+
+#### Usage
+
+```javascript
+const uri = 'https://example.com/path?query=hello world';
+const encoded = encodeURI(uri);
+console.log(encoded);
+// 'https://example.com/path?query=hello%20world'
+
+// Characters NOT encoded: A-Z a-z 0-9 - _ . ! ~ * ' ( )
+// Also NOT encoded: ; / ? : @ & = + $ , #
+```
+
+### decodeURI
+
+Decode a URI.
+
+```javascript
+decodeURI(encodedURI: string): string
+```
+
+<ParamField path="encodedURI" type="string" required>
+  Encoded URI to decode
+</ParamField>
+
+#### Usage
+
+```javascript
+const encoded = 'https://example.com/path?query=hello%20world';
+const decoded = decodeURI(encoded);
+console.log(decoded);
+// 'https://example.com/path?query=hello world'
+```
+
+### encodeURIComponent
+
+Encode a URI component by escaping all special characters.
+
+```javascript
+encodeURIComponent(component: string): string
+```
+
+<ParamField path="component" type="string" required>
+  URI component to encode
+</ParamField>
+
+#### Usage
+
+```javascript
+const param = 'hello world & goodbye';
+const encoded = encodeURIComponent(param);
+console.log(encoded);
+// 'hello%20world%20%26%20goodbye'
+
+// Build query string
+const query = '?name=' + encodeURIComponent('John Doe') +
+              '&email=' + encodeURIComponent('john@example.com');
+console.log(query);
+// '?name=John%20Doe&email=john%40example.com'
+```
+
+### decodeURIComponent
+
+Decode a URI component.
+
+```javascript
+decodeURIComponent(encodedComponent: string): string
+```
+
+<ParamField path="encodedComponent" type="string" required>
+  Encoded URI component to decode
+</ParamField>
+
+#### Usage
+
+```javascript
+const encoded = 'hello%20world%20%26%20goodbye';
+const decoded = decodeURIComponent(encoded);
+console.log(decoded);
+// 'hello world & goodbye'
+
+// Parse query string
+const queryString = 'name=John%20Doe&email=john%40example.com';
+const parts = queryString.split('&');
+const params = {};
+for (const part of parts) {
+  const [key, value] = part.split('=');
+  params[decodeURIComponent(key)] = decodeURIComponent(value);
+}
+console.log(params);
+// { name: 'John Doe', email: 'john@example.com' }
+```
+
+## Global Constants
+
+### Infinity
+
+```javascript
+console.log(Infinity);           // Infinity
+console.log(-Infinity);          // -Infinity
+console.log(1 / 0);              // Infinity
+console.log(-1 / 0);             // -Infinity
+console.log(Infinity > 1000000); // true
+```
+
+### NaN
+
+```javascript
+console.log(NaN);                // NaN
+console.log(0 / 0);              // NaN
+console.log(Math.sqrt(-1));      // NaN
+console.log(NaN === NaN);        // false (NaN is not equal to itself)
+console.log(Number.isNaN(NaN));  // true
+```
+
+### undefined
+
+```javascript
+let x;
+console.log(x);                  // undefined
+console.log(typeof undefined);   // 'undefined'
+console.log(undefined == null);  // true
+console.log(undefined === null); // false
+```
+
+## Usage Examples
+
+### Type Conversion
+
+```javascript
+function convertToNumber(value) {
+  const num = Number(value);
+  
+  if (isNaN(num)) {
+    throw new TypeError('Cannot convert to number');
+  }
+  
+  if (!isFinite(num)) {
+    throw new RangeError('Number must be finite');
+  }
+  
+  return num;
+}
+
+console.log(convertToNumber('42'));      // 42
+console.log(convertToNumber('3.14'));    // 3.14
+// convertToNumber('hello');             // TypeError
+// convertToNumber(Infinity);            // RangeError
+```
+
+### Parsing with Validation
+
+```javascript
+function parseInteger(str, radix = 10) {
+  if (radix < 2 || radix > 36) {
+    throw new RangeError('Radix must be between 2 and 36');
+  }
+  
+  const result = parseInt(str, radix);
+  
+  if (isNaN(result)) {
+    throw new Error('Failed to parse integer');
+  }
+  
+  return result;
+}
+
+console.log(parseInteger('42'));         // 42
+console.log(parseInteger('1010', 2));    // 10
+console.log(parseInteger('ff', 16));     // 255
+```
+
+### URL Parameter Handling
+
+```javascript
+function buildQueryString(params) {
+  const pairs = [];
+  
+  for (const key in params) {
+    const encodedKey = encodeURIComponent(key);
+    const encodedValue = encodeURIComponent(params[key]);
+    pairs.push(`${encodedKey}=${encodedValue}`);
+  }
+  
+  return pairs.join('&');
+}
+
+function parseQueryString(query) {
+  const params = {};
+  const pairs = query.split('&');
+  
+  for (const pair of pairs) {
+    const [key, value] = pair.split('=');
+    params[decodeURIComponent(key)] = decodeURIComponent(value);
+  }
+  
+  return params;
+}
+
+const params = { name: 'John Doe', email: 'john@example.com' };
+const query = buildQueryString(params);
+console.log(query);
+// 'name=John%20Doe&email=john%40example.com'
+
+const parsed = parseQueryString(query);
+console.log(parsed);
+// { name: 'John Doe', email: 'john@example.com' }
+```
+
+## See Also
+
+- [String Built-ins](/api/builtins/string) - String methods
+- [Type Functions](/api/porffor/types) - Porffor type checking
+- [Math Built-ins](/api/builtins/math) - Mathematical functions

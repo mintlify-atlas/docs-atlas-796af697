@@ -1,0 +1,403 @@
+---
+title: porf lambda
+description: Compile JavaScript to AWS Lambda deployment packages
+---
+
+Compile JavaScript Lambda functions to optimized deployment packages (`.zip`) ready for AWS Lambda.
+
+## Usage
+
+```bash
+porf lambda [flags] handler.js function.zip
+```
+
+## Examples
+
+<CodeGroup>
+```bash Basic Lambda package
+porf lambda handler.js function.zip
+```
+
+```bash With optimization
+porf lambda -O3 handler.js function.zip
+```
+
+```bash Debug package
+porf lambda -d handler.js function-debug.zip
+```
+</CodeGroup>
+
+## Arguments
+
+<ParamField path="handler.js" type="string" required>
+  JavaScript Lambda handler file (must export `handler` function)
+</ParamField>
+
+<ParamField path="function.zip" type="string" required>
+  Output deployment package (.zip file)
+</ParamField>
+
+## Handler Function
+
+Your Lambda handler file must export a `handler` function:
+
+```javascript handler.js
+export const handler = async (event, context) => {
+  // Process event
+  return {
+    statusCode: 200,
+    body: JSON.stringify({ message: 'Hello from Porffor!' })
+  };
+};
+```
+
+<Note>
+Porffor automatically removes the `async` keyword as it compiles synchronous code. The handler is internally wrapped to support Lambda's requirements.
+</Note>
+
+## Compilation Process
+
+The Lambda compilation:
+
+1. **Wraps handler**: Converts async handler to Porffor-compatible format
+2. **Compiles to C**: Uses 2c to generate C source code
+3. **Compiles to native**: Produces `bootstrap` executable
+4. **Creates package**: Packages `bootstrap` into `.zip` file
+
+```bash
+$ porf lambda handler.js function.zip
+Compiling handler.js to AWS Lambda function...
+compiled in 234.56ms
+Lambda function packaged to function.zip
+```
+
+## Optimizations
+
+<ParamField path="-On" type="flag">
+  Porffor optimization level
+  
+  ```bash
+  porf lambda -O3 handler.js function.zip
+  ```
+</ParamField>
+
+<ParamField path="-d" type="flag">
+  Debug mode - includes symbols, disables stripping
+  
+  ```bash
+  porf lambda -d handler.js function-debug.zip
+  ```
+  
+  Debug packages:
+  - Include function names and debug info
+  - Are larger in size
+  - Easier to troubleshoot
+  - Should not be used in production
+</ParamField>
+
+## Compiler Selection
+
+Lambda compilation uses a C compiler. By default:
+
+1. Checks for `musl-gcc` (recommended)
+2. Falls back to `gcc` if musl-gcc not found
+3. Can be overridden with `CC` environment variable
+
+<ParamField path="CC" type="environment">
+  Override C compiler
+  
+  ```bash
+  CC=musl-gcc porf lambda handler.js function.zip
+  CC=gcc porf lambda handler.js function.zip
+  ```
+</ParamField>
+
+### Installing musl-gcc
+
+<Warning>
+`musl-gcc` is recommended for Lambda as it noticeably improves deployed performance.
+</Warning>
+
+<CodeGroup>
+```bash Ubuntu/Debian
+sudo apt install musl-tools
+```
+
+```bash Alpine Linux
+apk add musl-dev gcc
+```
+
+```bash macOS
+brew install FiloSottile/musl-cross/musl-cross
+```
+
+```bash Without musl-gcc
+# Will use gcc with a warning
+porf lambda handler.js function.zip
+```
+</CodeGroup>
+
+## Lambda Configuration
+
+Porffor uses optimized settings for Lambda:
+
+- **Allocator**: `oneshot` (faster cold starts)
+- **Target**: `c` (via 2c compiler)
+- **Architecture**: `x86_64-v3` optimized
+- **Stripping**: Enabled (unless `-d` flag)
+- **Static linking**: Enabled with musl-gcc
+
+## Package Contents
+
+The generated `.zip` contains:
+
+```
+function.zip
+└── bootstrap          # Native executable
+```
+
+The `bootstrap` file is the Lambda custom runtime executable.
+
+## Deployment
+
+<Steps>
+  <Step title="Upload to Lambda">
+    ```bash
+    aws lambda create-function \
+      --function-name my-porffor-function \
+      --runtime provided.al2023 \
+      --handler bootstrap \
+      --zip-file fileb://function.zip \
+      --role arn:aws:iam::ACCOUNT:role/lambda-role
+    ```
+  </Step>
+  
+  <Step title="Configure runtime">
+    Use `provided.al2023` or `provided.al2` runtime
+    
+    ```bash
+    aws lambda update-function-configuration \
+      --function-name my-porffor-function \
+      --runtime provided.al2023
+    ```
+  </Step>
+  
+  <Step title="Test invocation">
+    ```bash
+    aws lambda invoke \
+      --function-name my-porffor-function \
+      --payload '{"key": "value"}' \
+      response.json
+    ```
+  </Step>
+</Steps>
+
+## Return Values
+
+The handler must return either:
+
+1. **Object** - Automatically JSON stringified
+   ```javascript
+   return { statusCode: 200, body: 'OK' };
+   ```
+
+2. **Bytestring** - Returned as-is
+   ```javascript
+   return JSON.stringify({ message: 'Hello' });
+   ```
+
+## Complete Example
+
+<CodeGroup>
+```javascript handler.js
+export const handler = async (event) => {
+  console.log('Event:', JSON.stringify(event));
+  
+  return {
+    statusCode: 200,
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      message: 'Hello from Porffor Lambda!',
+      input: event
+    })
+  };
+};
+```
+
+```bash Build and deploy
+# Compile optimized package
+porf lambda -O3 handler.js function.zip
+
+# Deploy to AWS
+aws lambda update-function-code \
+  --function-name my-function \
+  --zip-file fileb://function.zip
+
+# Test
+aws lambda invoke \
+  --function-name my-function \
+  --payload '{"test": true}' \
+  response.json
+
+cat response.json
+```
+</CodeGroup>
+
+## Package Size
+
+Optimized Lambda packages are typically:
+
+- **Simple handler**: 50-100 KB
+- **Medium complexity**: 200-400 KB  
+- **Complex logic**: 500 KB - 1 MB
+
+<Note>
+Porffor Lambda packages are significantly smaller than typical Node.js Lambda packages because they have zero runtime dependencies.
+</Note>
+
+## Performance Benefits
+
+- **Fast cold starts**: Native executable, no runtime initialization
+- **Low memory usage**: No JavaScript runtime overhead
+- **Predictable performance**: AOT compilation, no JIT warmup
+- **Small package size**: No node_modules dependencies
+
+## Optimization Tips
+
+<CodeGroup>
+```bash Maximum performance
+# Use musl-gcc for best results
+sudo apt install musl-tools
+
+# Compile with maximum optimization
+porf lambda -O3 handler.js function.zip
+```
+
+```bash Smallest package
+# Already optimized by default
+porf lambda -O3 handler.js function.zip
+
+# Package is automatically stripped
+```
+
+```bash Debug package
+# For troubleshooting
+porf lambda -d -O0 handler.js function-debug.zip
+```
+</CodeGroup>
+
+## Troubleshooting
+
+### musl-gcc Warning
+
+```
+musl-gcc is recommended for Lambda as it noticeably improves 
+deployed performance. Install it or explicitly specify a compiler 
+via CC to hide this warning. Defaulting to gcc.
+```
+
+**Solution**: Install musl-gcc or set `CC=gcc` to suppress warning:
+
+```bash
+CC=gcc porf lambda handler.js function.zip
+```
+
+### Handler Not Found
+
+Ensure your file exports `handler`:
+
+```javascript
+// Correct
+export const handler = async (event) => { /* ... */ };
+
+// Also works
+exports.handler = async (event) => { /* ... */ };
+```
+
+### Lambda Timeout
+
+Increase timeout in AWS Lambda configuration:
+
+```bash
+aws lambda update-function-configuration \
+  --function-name my-function \
+  --timeout 30
+```
+
+### Missing Dependencies
+
+Porffor has limited standard library support. Check:
+
+```bash
+# Test locally first
+porf handler.js
+
+# Then compile to Lambda
+porf lambda handler.js function.zip
+```
+
+## Environment Variables
+
+<ParamField path="CC" type="string">
+  C compiler to use
+  
+  ```bash
+  CC=musl-gcc porf lambda handler.js function.zip
+  CC=gcc porf lambda handler.js function.zip
+  ```
+</ParamField>
+
+## Debug Mode Details
+
+When using `-d` flag:
+
+```bash
+porf lambda -d handler.js function-debug.zip
+```
+
+The package includes:
+- Unstripped binary with debug symbols
+- Function and variable names preserved
+- Debug compiler flags (`-g`, `-O0`)
+- C source file (`.c`) retained
+- Bootstrap binary retained
+
+<Warning>
+Debug packages are larger and slower. Only use for development.
+</Warning>
+
+## AWS Lambda Runtimes
+
+Porffor Lambda functions use custom runtimes:
+
+- `provided.al2023` (Amazon Linux 2023) - Recommended
+- `provided.al2` (Amazon Linux 2) - Also supported
+- Architecture: `x86_64`
+
+## Cleanup
+
+By default, temporary files are removed after packaging:
+
+- `bootstrap.c` (C source)
+- `bootstrap` (before zipping)
+
+With `-d` flag, these files are preserved for inspection.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Native Compilation" icon="microchip" href="/cli/native">
+    Understand the underlying native compilation
+  </Card>
+  <Card title="C Output" icon="code" href="/cli/c">
+    Inspect generated C code
+  </Card>
+  <Card title="Profile" icon="chart-line" href="/cli/profile">
+    Optimize handler performance
+  </Card>
+  <Card title="Run Locally" icon="play" href="/cli/run">
+    Test handler before deploying
+  </Card>
+</CardGroup>

@@ -1,0 +1,414 @@
+---
+title: RegExp Built-ins
+description: Regular expression pattern matching
+---
+
+Porffor implements a full-featured RegExp engine compiled to WebAssembly for high-performance pattern matching.
+
+## RegExp Constructor
+
+### RegExp
+
+Creates a new regular expression.
+
+```javascript
+new RegExp(pattern: string | RegExp, flags?: string)
+```
+
+```javascript
+// From string pattern
+const regex1 = new RegExp('\\d+');
+const regex2 = new RegExp('hello', 'i');
+
+// From regex literal
+const regex3 = /\d+/g;
+const regex4 = /hello/i;
+
+// Copy with new flags
+const regex5 = new RegExp(/abc/, 'gi');
+```
+
+## Flags
+
+RegExp supports all standard flags:
+
+| Flag | Name | Description |
+|------|------|-------------|
+| `g` | global | Match all occurrences |
+| `i` | ignoreCase | Case-insensitive matching |
+| `m` | multiline | `^` and `$` match line boundaries |
+| `s` | dotAll | `.` matches newlines |
+| `u` | unicode | Unicode mode |
+| `y` | sticky | Match from lastIndex only |
+| `d` | hasIndices | Generate match indices |
+| `v` | unicodeSets | Unicode set notation |
+
+```javascript
+const regex = /pattern/gimsu;
+console.log(regex.flags);  // 'gimsu'
+console.log(regex.global); // true
+console.log(regex.ignoreCase); // true
+```
+
+## Instance Properties
+
+### source
+
+The pattern text.
+
+```javascript
+const regex = /hello/i;
+console.log(regex.source);  // 'hello'
+```
+
+### flags
+
+The flags string.
+
+```javascript
+const regex = /hello/gi;
+console.log(regex.flags);  // 'gi'
+```
+
+### global
+
+Whether the `g` flag is set.
+
+```javascript
+const regex = /test/g;
+console.log(regex.global);  // true
+```
+
+### ignoreCase
+
+Whether the `i` flag is set.
+
+```javascript
+const regex = /test/i;
+console.log(regex.ignoreCase);  // true
+```
+
+### multiline
+
+Whether the `m` flag is set.
+
+```javascript
+const regex = /test/m;
+console.log(regex.multiline);  // true
+```
+
+### dotAll
+
+Whether the `s` flag is set.
+
+```javascript
+const regex = /test/s;
+console.log(regex.dotAll);  // true
+```
+
+### unicode
+
+Whether the `u` flag is set.
+
+```javascript
+const regex = /test/u;
+console.log(regex.unicode);  // true
+```
+
+### sticky
+
+Whether the `y` flag is set.
+
+```javascript
+const regex = /test/y;
+console.log(regex.sticky);  // true
+```
+
+### lastIndex
+
+The index at which to start the next match.
+
+```javascript
+const regex = /\d/g;
+const str = 'a1b2c3';
+
+regex.test(str);
+console.log(regex.lastIndex);  // 2
+
+regex.test(str);
+console.log(regex.lastIndex);  // 4
+```
+
+## Instance Methods
+
+### test
+
+Tests if pattern matches a string.
+
+```javascript
+regex.test(str: string): boolean
+```
+
+```javascript
+const regex = /\d+/;
+console.log(regex.test('abc'));    // false
+console.log(regex.test('abc123')); // true
+
+// With global flag
+const globalRegex = /\d/g;
+const str = 'a1b2';
+console.log(globalRegex.test(str));  // true (matches '1')
+console.log(globalRegex.test(str));  // true (matches '2')
+console.log(globalRegex.test(str));  // false (no more matches)
+```
+
+### exec
+
+Executes pattern and returns match details.
+
+```javascript
+regex.exec(str: string): RegExpExecArray | null
+```
+
+```javascript
+const regex = /(\d+)-(\w+)/;
+const result = regex.exec('ID: 123-abc');
+
+console.log(result[0]);  // '123-abc' (full match)
+console.log(result[1]);  // '123' (first group)
+console.log(result[2]);  // 'abc' (second group)
+console.log(result.index);  // 4 (match position)
+
+// With global flag
+const globalRegex = /\d/g;
+const str = 'a1b2c3';
+
+let match;
+while ((match = globalRegex.exec(str)) !== null) {
+  console.log(`Found ${match[0]} at index ${match.index}`);
+}
+// Found 1 at index 1
+// Found 2 at index 3
+// Found 3 at index 5
+```
+
+## Pattern Syntax
+
+Porffor supports full RegExp syntax:
+
+### Character Classes
+
+```javascript
+/[abc]/        // Match a, b, or c
+/[^abc]/       // Match anything except a, b, c
+/[a-z]/        // Match lowercase letters
+/[0-9]/        // Match digits
+/./            // Match any character (except newline without 's' flag)
+```
+
+### Predefined Character Classes
+
+```javascript
+/\d/    // Digit [0-9]
+/\D/    // Non-digit [^0-9]
+/\w/    // Word character [a-zA-Z0-9_]
+/\W/    // Non-word character [^a-zA-Z0-9_]
+/\s/    // Whitespace [ \t\n\r\f]
+/\S/    // Non-whitespace [^ \t\n\r\f]
+```
+
+### Quantifiers
+
+```javascript
+/a*/       // 0 or more
+/a+/       // 1 or more
+/a?/       // 0 or 1
+/a{3}/     // Exactly 3
+/a{2,5}/   // 2 to 5
+/a{2,}/    // 2 or more
+```
+
+### Anchors
+
+```javascript
+/^abc/     // Start of string (or line with 'm' flag)
+/abc$/     // End of string (or line with 'm' flag)
+/\b/       // Word boundary
+/\B/       // Non-word boundary
+```
+
+### Groups
+
+```javascript
+/(abc)/           // Capturing group
+/(?:abc)/         // Non-capturing group
+/(?<name>abc)/    // Named capturing group
+```
+
+### Alternation
+
+```javascript
+/cat|dog/         // Match 'cat' or 'dog'
+/gr(a|e)y/        // Match 'gray' or 'grey'
+```
+
+### Lookahead
+
+```javascript
+/foo(?=bar)/      // Positive lookahead
+/foo(?!bar)/      // Negative lookahead
+```
+
+### Backreferences
+
+```javascript
+/(\w+)\s\1/       // Match repeated words: 'test test'
+```
+
+## Usage Examples
+
+### Email Validation
+
+```javascript
+function isValidEmail(email) {
+  const regex = /^[a-zA-Z0-9._+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  return regex.test(email);
+}
+
+console.log(isValidEmail('user@example.com'));  // true
+console.log(isValidEmail('invalid.email'));     // false
+```
+
+### Extract All Matches
+
+```javascript
+function extractNumbers(str) {
+  const regex = /\d+/g;
+  const matches = [];
+  let match;
+  
+  while ((match = regex.exec(str)) !== null) {
+    matches.push(parseInt(match[0]));
+  }
+  
+  return matches;
+}
+
+console.log(extractNumbers('abc 123 def 456 xyz 789'));
+// [123, 456, 789]
+```
+
+### String Replacement
+
+```javascript
+function slugify(text) {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+console.log(slugify('Hello World!'));  // 'hello-world'
+console.log(slugify('  Foo Bar  '));  // 'foo-bar'
+```
+
+### Capture Groups
+
+```javascript
+function parseDate(dateStr) {
+  const regex = /(\d{4})-(\d{2})-(\d{2})/;
+  const match = regex.exec(dateStr);
+  
+  if (match) {
+    return {
+      year: parseInt(match[1]),
+      month: parseInt(match[2]),
+      day: parseInt(match[3])
+    };
+  }
+  
+  return null;
+}
+
+console.log(parseDate('2024-06-15'));
+// { year: 2024, month: 6, day: 15 }
+```
+
+### Named Capture Groups
+
+```javascript
+function parseURL(url) {
+  const regex = /^(?<protocol>https?):\/\/(?<domain>[^/]+)(?<path>\/.*)?$/;
+  const match = regex.exec(url);
+  
+  if (match && match.groups) {
+    return match.groups;
+  }
+  
+  return null;
+}
+
+console.log(parseURL('https://example.com/path'));
+// { protocol: 'https', domain: 'example.com', path: '/path' }
+```
+
+### Multiline Matching
+
+```javascript
+const text = `
+Line 1
+Line 2
+Line 3
+`;
+
+// Match line starts
+const regex = /^Line/gm;
+const matches = text.match(regex);
+console.log(matches);  // ['Line', 'Line', 'Line']
+```
+
+## String Integration
+
+RegExp works seamlessly with String methods:
+
+```javascript
+const str = 'The year is 2024';
+
+// String.match
+console.log(str.match(/\d+/));  // ['2024']
+
+// String.search
+console.log(str.search(/\d+/));  // 12
+
+// String.replace
+console.log(str.replace(/\d+/, '2025'));  // 'The year is 2025'
+
+// String.split
+console.log('a,b,c'.split(/,/));  // ['a', 'b', 'c']
+```
+
+## Performance Notes
+
+Porffor's RegExp engine is compiled to WebAssembly for high performance:
+
+- **Bytecode compilation**: Patterns are compiled to efficient bytecode
+- **SIMD optimization**: Uses SIMD for fast string comparison
+- **Zero-copy**: Direct memory access without string copying
+
+```javascript
+// Efficient pattern matching
+const regex = /\d+/g;
+const largeText = /* large string */;
+
+const start = performance.now();
+const matches = largeText.match(regex);
+const time = performance.now() - start;
+
+console.log(`Found ${matches.length} matches in ${time}ms`);
+```
+
+## See Also
+
+- [String Built-ins](/api/builtins/string) - String methods using RegExp
+- [ByteString Utilities](/api/porffor/bytestring) - String operations
+- [Global Functions](/api/builtins/globals) - Pattern matching helpers

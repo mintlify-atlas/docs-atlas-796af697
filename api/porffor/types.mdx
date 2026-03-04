@@ -1,0 +1,314 @@
+---
+title: Type Functions
+description: Runtime type checking and type constants
+---
+
+Porffor provides runtime type checking functions and constants for working with JavaScript types in compiled code.
+
+## type
+
+Get the runtime type of a value.
+
+```typescript
+Porffor.type(x: any): i32
+```
+
+<ParamField path="x" type="any" required>
+  Value to check the type of
+</ParamField>
+
+<ResponseField name="return" type="i32">
+  Type identifier (constant from `Porffor.TYPES`)
+</ResponseField>
+
+### Usage
+
+```javascript
+function checkType(value) {
+  const t = Porffor.type(value);
+  
+  if (t == Porffor.TYPES.number) {
+    console.log('It\'s a number!');
+  } else if (t == Porffor.TYPES.string) {
+    console.log('It\'s a string!');
+  } else if (t == Porffor.TYPES.boolean) {
+    console.log('It\'s a boolean!');
+  }
+}
+
+checkType(42);      // "It's a number!"
+checkType('hello'); // "It's a string!"
+checkType(true);    // "It's a boolean!"
+```
+
+## typeName
+
+Get the human-readable name of a type.
+
+```typescript
+Porffor.typeName(type: i32): bytestring
+```
+
+<ParamField path="type" type="i32" required>
+  Type identifier (from `Porffor.TYPES`)
+</ParamField>
+
+<ResponseField name="return" type="bytestring">
+  Name of the type (e.g., 'Number', 'String', 'Object')
+</ResponseField>
+
+### Usage
+
+```javascript
+function getTypeName(value) {
+  const t = Porffor.type(value);
+  return Porffor.typeName(t);
+}
+
+console.log(getTypeName(42));        // 'Number'
+console.log(getTypeName('hello'));   // 'String'
+console.log(getTypeName({}));        // 'Object'
+console.log(getTypeName([]));        // 'Array'
+console.log(getTypeName(/regex/));   // 'RegExp'
+```
+
+## TYPES Constants
+
+Type identifier constants for all JavaScript types.
+
+### Primitive Types
+
+```typescript
+Porffor.TYPES.number: i32      // Number type
+Porffor.TYPES.boolean: i32     // Boolean type
+Porffor.TYPES.string: i32      // String type
+Porffor.TYPES.undefined: i32   // Undefined type
+Porffor.TYPES.object: i32      // Object type
+Porffor.TYPES.function: i32    // Function type
+Porffor.TYPES.symbol: i32      // Symbol type
+Porffor.TYPES.bigint: i32      // BigInt type
+```
+
+### Built-in Object Types
+
+```typescript
+Porffor.TYPES.array: i32       // Array type
+Porffor.TYPES.regexp: i32      // RegExp type
+Porffor.TYPES.date: i32        // Date type
+Porffor.TYPES.set: i32         // Set type
+Porffor.TYPES.map: i32         // Map type
+Porffor.TYPES.weakset: i32     // WeakSet type
+Porffor.TYPES.weakmap: i32     // WeakMap type
+Porffor.TYPES.weakref: i32     // WeakRef type
+Porffor.TYPES.promise: i32     // Promise type
+```
+
+### Special String Type
+
+```typescript
+Porffor.TYPES.bytestring: i32  // ByteString (internal optimized string type)
+```
+
+ByteStrings are an internal optimization where strings containing only ASCII characters are stored as single bytes instead of UTF-16.
+
+### Typed Arrays
+
+```typescript
+Porffor.TYPES.uint8array: i32
+Porffor.TYPES.int8array: i32
+Porffor.TYPES.uint8clampedarray: i32
+Porffor.TYPES.uint16array: i32
+Porffor.TYPES.int16array: i32
+Porffor.TYPES.uint32array: i32
+Porffor.TYPES.int32array: i32
+Porffor.TYPES.float32array: i32
+Porffor.TYPES.float64array: i32
+Porffor.TYPES.bigint64array: i32
+Porffor.TYPES.biguint64array: i32
+```
+
+### Binary Data Types
+
+```typescript
+Porffor.TYPES.arraybuffer: i32
+Porffor.TYPES.sharedarraybuffer: i32
+Porffor.TYPES.dataview: i32
+```
+
+### Object Wrappers
+
+```typescript
+Porffor.TYPES.numberobject: i32   // new Number()
+Porffor.TYPES.booleanobject: i32  // new Boolean()
+Porffor.TYPES.stringobject: i32   // new String()
+```
+
+### Error Types
+
+```typescript
+Porffor.TYPES.error: i32
+Porffor.TYPES.aggregateerror: i32
+Porffor.TYPES.typeerror: i32
+Porffor.TYPES.referenceerror: i32
+Porffor.TYPES.syntaxerror: i32
+Porffor.TYPES.rangeerror: i32
+Porffor.TYPES.evalerror: i32
+Porffor.TYPES.urierror: i32
+```
+
+## Usage Examples
+
+### Type Guards
+
+```javascript
+function isNumber(x) {
+  return Porffor.type(x) == Porffor.TYPES.number;
+}
+
+function isString(x) {
+  return (Porffor.type(x) | 0b10000000) == Porffor.TYPES.bytestring;
+  // Matches both string and bytestring
+}
+
+function isArray(x) {
+  return Porffor.type(x) == Porffor.TYPES.array;
+}
+```
+
+### Type-based Dispatch
+
+```javascript
+function processValue(value) {
+  const t = Porffor.type(value);
+  
+  switch (t) {
+    case Porffor.TYPES.number:
+      return value * 2;
+    
+    case Porffor.TYPES.string:
+    case Porffor.TYPES.bytestring:
+      return value.toUpperCase();
+    
+    case Porffor.TYPES.array:
+      return value.map(processValue);
+    
+    case Porffor.TYPES.object:
+      const result = {};
+      for (const key in value) {
+        result[key] = processValue(value[key]);
+      }
+      return result;
+    
+    default:
+      return value;
+  }
+}
+```
+
+### Type Validation
+
+```javascript
+function validateArgs(args, expectedTypes) {
+  if (args.length !== expectedTypes.length) {
+    throw new TypeError('Wrong number of arguments');
+  }
+  
+  for (let i = 0; i < args.length; i++) {
+    const actualType = Porffor.type(args[i]);
+    const expectedType = expectedTypes[i];
+    
+    if (actualType !== expectedType) {
+      const actualName = Porffor.typeName(actualType);
+      const expectedName = Porffor.typeName(expectedType);
+      throw new TypeError(
+        `Argument ${i}: expected ${expectedName}, got ${actualName}`
+      );
+    }
+  }
+}
+
+// Usage
+function add(a, b) {
+  validateArgs(
+    [a, b],
+    [Porffor.TYPES.number, Porffor.TYPES.number]
+  );
+  return a + b;
+}
+```
+
+### Type Introspection
+
+```javascript
+function describeValue(value) {
+  const t = Porffor.type(value);
+  const name = Porffor.typeName(t);
+  
+  let details = `Type: ${name}`;
+  
+  if (t == Porffor.TYPES.array || 
+      (t | 0b10000000) == Porffor.TYPES.bytestring) {
+    details += `, Length: ${value.length}`;
+  }
+  
+  if (t == Porffor.TYPES.object) {
+    const keys = Object.keys(value);
+    details += `, Keys: ${keys.length}`;
+  }
+  
+  return details;
+}
+
+console.log(describeValue([1, 2, 3]));
+// "Type: Array, Length: 3"
+
+console.log(describeValue({ a: 1, b: 2 }));
+// "Type: Object, Keys: 2"
+```
+
+### Optimized String Type Checking
+
+```javascript
+// Check if value is any kind of string (string or bytestring)
+function isAnyString(value) {
+  return (Porffor.type(value) | 0b10000000) == Porffor.TYPES.bytestring;
+}
+
+// Check if value is specifically a bytestring
+function isByteString(value) {
+  return Porffor.type(value) == Porffor.TYPES.bytestring;
+}
+
+// Check if value is specifically a UTF-16 string
+function isUTF16String(value) {
+  return Porffor.type(value) == Porffor.TYPES.string;
+}
+```
+
+## Type Flag Constants
+
+Some types have flags that can be checked:
+
+```typescript
+// Parity flag (0b10000000) - Used to differentiate string from bytestring
+// Length flag (0b01000000) - Type has a length property
+```
+
+### Checking Type Flags
+
+```javascript
+function hasLength(value) {
+  const t = Porffor.type(value);
+  return (t & 0b01000000) !== 0;
+}
+
+console.log(hasLength('hello'));  // true (string)
+console.log(hasLength([1, 2]));   // true (array)
+console.log(hasLength({ }));      // false (object)
+```
+
+## See Also
+
+- [Porffor.wasm](/api/porffor/wasm) - Low-level type representation
+- [Object API](/api/porffor/object) - Object type checking utilities
+- [ByteString Utilities](/api/porffor/bytestring) - String type operations

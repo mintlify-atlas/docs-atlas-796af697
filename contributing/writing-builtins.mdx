@@ -1,0 +1,363 @@
+---
+title: Writing Built-ins
+description: Learn how to write built-in functions and methods for Porffor
+---
+
+This guide covers Porffor-specific TypeScript for writing built-ins in `compiler/builtins/*.ts`. Built-ins are core APIs like `btoa`, `String.prototype.trim`, array methods, and more.
+
+## Porffor Types
+
+Porffor has usual JS types plus some internal types for optimization.
+
+### ByteString
+
+**Most important internal type.** Regular strings in Porffor are UTF-16 encoded (2 bytes per character). ByteStrings are optimized for ASCII/LATIN-1 characters, using only 1 byte per character.
+
+**Benefits:**
+- Halves memory usage for ASCII strings
+- Faster operations
+
+**Downside:**
+- Many built-ins need to be written twice (for `string` and `bytestring`)
+
+### i32
+
+Use this **only for pointers**. It's the Wasm valtype `i32` (not explicitly signed or unsigned - that's instruction-dependent).
+
+## Naming Conventions
+
+Built-in functions use underscores instead of dots:
+
+```ts
+// For String.prototype.toUpperCase
+export const __String_prototype_toUpperCase = ...
+
+// For ByteString.prototype.toUpperCase  
+export const __ByteString_prototype_toUpperCase = ...
+
+// For global functions
+export const btoa = ...
+```
+
+Pattern: `__Type_prototype_method` for prototype methods.
+
+## Function Signature Requirements
+
+### The `_this` Parameter
+
+Since `this` doesn't exist in Porffor yet, use a `_this` parameter:
+
+```ts
+export const __ByteString_prototype_toUpperCase = (_this: bytestring) => {
+  // _this is what would be 'this' in regular JS
+};
+```
+
+### Arrow Functions Required
+
+Always use arrow functions for built-ins:
+
+```ts
+// ✅ Correct
+export const __String_prototype_trim = (_this: string) => { ... };
+
+// ❌ Wrong
+export function __String_prototype_trim(_this: string) { ... }
+```
+
+### No Return Type Annotation for Prototype Methods
+
+<Warning>
+Do not set a return type for prototype methods - it can cause errors.
+</Warning>
+
+```ts
+// ✅ Correct
+export const __String_prototype_toUpperCase = (_this: string) => {
+  // ...
+};
+
+// ❌ Wrong - can cause errors
+export const __String_prototype_toUpperCase = (_this: string): string => {
+  // ...
+};
+```
+
+## Porffor-Specific TypeScript Notes
+
+### Explicit Type Annotations Required
+
+```ts
+// ✅ Correct
+let a: number = 1;
+let len: i32 = str.length;
+
+// ❌ Wrong
+let a = 1;
+let len = str.length;
+```
+
+### Object Literals Need Variables
+
+Due to precompile allocator constraints:
+
+```ts
+// ✅ Correct
+const out: bytestring = 'foobar';
+console.log(out);
+
+// ❌ Wrong
+console.log('foobar');
+```
+
+### Use Non-Strict Equality
+
+Generally use `==` and `!=` instead of `===` and `!==`:
+
+```ts
+if (chr == 97) { ... }  // ✅
+```
+
+### Truthy Checks
+
+`if (...)` uses a fast but non-spec-compliant truthy check. For spec-compliant behavior:
+
+```ts
+if (!!condition) { ... }  // Spec-compliant
+```
+
+### Scope Limitations
+
+- Cannot use other functions in the file unless exported
+- Cannot use variables outside the current function
+- Keep everything self-contained
+
+## Working with Pointers
+
+Pointers are essential when working with objects (arrays, strings, etc.).
+
+### Get a Pointer
+
+```ts
+Porffor.wasm`local.get ${variable}`
+```
+
+Gets the pointer to `variable` as a number instead of the object itself.
+
+### Store a Character in ByteString
+
+```ts
+Porffor.wasm.i32.store8(pointer, characterCode, 0, 4);
+```
+
+### Store a Character in String
+
+```ts
+Porffor.wasm.i32.store16(pointer, characterCode, 0, 4);
+```
+
+### Load a Character from ByteString
+
+```ts
+Porffor.wasm.i32.load8_u(pointer, 0, 4);
+```
+
+### Load a Character from String
+
+```ts
+Porffor.wasm.i32.load16_u(pointer, 0, 4);
+```
+
+### Set Object Length
+
+```ts
+// Modern way (preferred)
+obj.length = length;
+
+// Manual way (older)
+Porffor.wasm.i32.store(pointer, length, 0, 0);
+```
+
+<Note>
+The last two arguments in store/load functions (alignment and byte offset) are required for the Wasm instruction but you don't need to change them.
+</Note>
+
+## Complete Example: ByteString.prototype.toUpperCase
+
+Here's a real example from Porffor:
+
+```ts
+export const __ByteString_prototype_toUpperCase = (_this: bytestring) => {
+  const len: i32 = _this.length;
+
+  let out: bytestring = '';
+  Porffor.wasm.i32.store(out, len, 0, 0);
+
+  let i: i32 = Porffor.wasm`local.get ${_this}`,
+      j: i32 = Porffor.wasm`local.get ${out}`;
+
+  const endPtr: i32 = i + len;
+  while (i < endPtr) {
+    let chr: i32 = Porffor.wasm.i32.load8_u(i++, 0, 4);
+
+    if (chr >= 97) if (chr <= 122) chr -= 32;
+
+    Porffor.wasm.i32.store8(j++, chr, 0, 4);
+  }
+
+  return out;
+};
+```
+
+Let's break it down:
+
+### 1. Function Definition
+
+```ts
+export const __ByteString_prototype_toUpperCase = (_this: bytestring) => {
+```
+
+- Uses `__ByteString_prototype_toUpperCase` naming
+- Takes `_this` parameter (the string to convert)
+- Uses arrow function
+- No return type annotation
+
+### 2. Setup Output Variable
+
+```ts
+const len: i32 = _this.length;
+
+let out: bytestring = '';
+Porffor.wasm.i32.store(out, len, 0, 0);
+```
+
+- Get the length (will be same as input)
+- Create empty output string
+- Set its length in advance (Wasm intrinsics won't update it automatically)
+
+### 3. Get Pointers
+
+```ts
+let i: i32 = Porffor.wasm`local.get ${_this}`,
+    j: i32 = Porffor.wasm`local.get ${out}`;
+```
+
+- `i` = pointer to input string
+- `j` = pointer to output string
+- Both are `i32` (numbers representing memory locations)
+
+### 4. Loop Setup
+
+```ts
+const endPtr: i32 = i + len;
+while (i < endPtr) {
+```
+
+- Calculate end pointer (start + length)
+- Loop until we reach the end
+- This iterates through every character
+
+### 5. Read Character
+
+```ts
+let chr: i32 = Porffor.wasm.i32.load8_u(i++, 0, 4);
+```
+
+- Load character code at current pointer
+- Increment pointer for next iteration
+- Uses `load8_u` because it's a ByteString (1 byte per char)
+
+### 6. Convert to Uppercase
+
+```ts
+if (chr >= 97) if (chr <= 122) chr -= 32;
+```
+
+- If character code is between 97 (`a`) and 122 (`z`)
+- Subtract 32 to convert to uppercase
+- Example: 97 (`a`) - 32 = 65 (`A`)
+
+### 7. Write Character
+
+```ts
+Porffor.wasm.i32.store8(j++, chr, 0, 4);
+```
+
+- Store the (possibly converted) character to output
+- Increment output pointer
+- Uses `store8` for ByteString
+
+## Porffor.wasm Inline Assembly
+
+For advanced operations, you can write inline WebAssembly:
+
+```ts
+Porffor.wasm`
+local aCasted i32
+local bCasted i32
+returns i32 i32
+
+;; if both types are number
+local.get ${a+1}
+i32.const 1
+i32.eq
+local.get ${b+1}
+i32.const 1
+i32.eq
+i32.and
+if
+  local.get ${a}
+  i32.from
+  local.set aCasted
+  
+  local.get ${b}
+  i32.from
+  local.set bCasted
+  
+  local.get aCasted
+  local.get bCasted
+  i32.add
+  i32.const 1
+  return
+end
+
+i32.const 0
+i32.const 0
+return`
+```
+
+Key points:
+- `local name type` - Define local variables
+- `returns type type` - Set return types (be careful - most functions need `f64 i32`)
+- `;;` - Comments in Wasm
+- `${variable}` - Reference JS variables
+- `${variable+1}` - Get the type of a variable
+- `i32.from`, `i32.to` - Convert between valtype and i32 (Porffor custom instructions)
+
+<Warning>
+Be extremely careful with `returns` - Porffor expects most functions to return `(valtype, i32)`. Only override this if you know what you're doing.
+</Warning>
+
+## Best Practices
+
+1. **Avoid heavy object/string/array code** - Use more primitive variables when possible (better for memory and performance)
+
+2. **Don't worry about formatting** - Focus on correct code; formatting can be cleaned up later
+
+3. **Look at existing built-ins** - The `compiler/builtins/` files are full of examples
+
+4. **Test frequently** - Use `./porf precompile` and test after each change
+
+5. **Ask for help** - Join the Discord if you get stuck!
+
+## Resources
+
+- [MDN](https://developer.mozilla.org/en-US/) - High-level descriptions and spec links
+- [WebAssembly Opcodes](https://pengowray.github.io/wasm-ops/) - Wasm instruction reference
+- [Porffor Discord](https://discord.gg/6crs9Znx9R) - Ask questions
+
+## Next Steps
+
+- Learn about [Testing](/contributing/testing) your built-ins
+- Follow [Commit Style](/contributing/commit-style) conventions
+- Review [Project Structure](/contributing/project-structure)

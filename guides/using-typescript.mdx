@@ -1,0 +1,453 @@
+---
+title: "Using TypeScript with Porffor"
+description: "Compile TypeScript to WebAssembly and native binaries with type-based optimizations"
+---
+
+## Overview
+
+Porffor supports TypeScript syntax and can use type annotations as compiler hints for optimization. While Porffor does not perform type checking (it's not a type checker), it can parse TypeScript syntax and leverage type information to generate more efficient code.
+
+<Note>
+  Porffor parses TypeScript syntax but does not type-check. Use `tsc --noEmit` or your editor's TypeScript support for type checking.
+</Note>
+
+## Basic TypeScript Support
+
+### Enabling TypeScript Parsing
+
+Use the `-t` flag to force parsing as TypeScript:
+
+```bash
+porf -t script.ts
+```
+
+Or use the `--parse-types` flag to enable type annotation parsing:
+
+```bash
+porf --parse-types script.ts
+```
+
+When using `--parse-types` without specifying a parser, Porffor automatically uses `@babel/parser` (which supports TypeScript).
+
+### Simple TypeScript Example
+
+```typescript hello.ts
+function greet(name: string): string {
+  return `Hello, ${name}!`;
+}
+
+const message: string = greet('Porffor');
+console.log(message);
+
+const count: number = 42;
+console.log('The answer is:', count);
+```
+
+Compile and run:
+
+```bash
+porf -t hello.ts
+# Output: Hello, Porffor!
+#         The answer is: 42
+```
+
+## Parser Options
+
+### Automatic Parser Selection
+
+When you use `--parse-types`, Porffor automatically selects a TypeScript-compatible parser:
+
+```bash
+porf --parse-types input.ts
+# Uses @babel/parser by default
+```
+
+### Explicit Parser Selection
+
+You can manually choose a TypeScript-compatible parser:
+
+```bash
+porf --parser=@babel/parser --parse-types input.ts
+porf --parser=hermes-parser --parse-types input.ts
+```
+
+<Info>
+  Supported TypeScript parsers: `@babel/parser`, `hermes-parser`. Acorn and Meriyah do not support TypeScript syntax by default.
+</Info>
+
+## Type-Based Optimizations
+
+The `--opt-types` flag enables optimizations based on type annotations:
+
+```bash
+porf --parse-types --opt-types input.ts
+```
+
+### How Type Optimization Works
+
+Porffor uses type annotations as **hints** to:
+- Generate more specific WebAssembly code
+- Skip runtime type checks when types are known
+- Choose optimal internal representations
+- Inline operations for known types
+
+<Warning>
+  Type annotations are trusted as hints. Incorrect types may lead to undefined behavior, as Porffor does not validate them.
+</Warning>
+
+### Example: Type-Optimized Code
+
+```typescript math.ts
+function add(a: number, b: number): number {
+  return a + b;
+}
+
+function multiply(x: number, y: number): number {
+  return x * y;
+}
+
+function compute(values: number[]): number {
+  let sum: number = 0;
+  for (let i: number = 0; i < values.length; i++) {
+    sum += values[i];
+  }
+  return sum;
+}
+
+const data: number[] = [1, 2, 3, 4, 5];
+console.log('Sum:', compute(data));
+console.log('Product:', multiply(add(2, 3), 4));
+```
+
+Compile with type optimizations:
+
+```bash
+porf --parse-types --opt-types -O2 math.ts
+```
+
+With `--opt-types`, Porffor:
+- Knows `add` and `multiply` work with numbers (f64 in Wasm)
+- Skips type tagging and checking for `sum` and `i`
+- Optimizes array access knowing `values` contains numbers
+
+## TypeScript Features Support
+
+### Supported Features
+
+Porffor parses and compiles:
+
+<Accordion title="Type Annotations">
+  ```typescript
+  const name: string = 'Porffor';
+  const count: number = 42;
+  const flag: boolean = true;
+  const items: number[] = [1, 2, 3];
+  ```
+</Accordion>
+
+<Accordion title="Function Type Signatures">
+  ```typescript
+  function process(input: string, count: number): boolean {
+    return input.length > count;
+  }
+
+  const handler = (x: number, y: number): number => x + y;
+  ```
+</Accordion>
+
+<Accordion title="Interface Declarations">
+  ```typescript
+  interface Point {
+    x: number;
+    y: number;
+  }
+
+  function distance(p1: Point, p2: Point): number {
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+  ```
+  
+  <Note>Interfaces are erased at compile time; they're purely for documentation and editor support.</Note>
+</Accordion>
+
+<Accordion title="Type Aliases">
+  ```typescript
+  type StringOrNumber = string | number;
+  type Callback = (value: number) => void;
+
+  function process(value: StringOrNumber): void {
+    console.log(value);
+  }
+  ```
+</Accordion>
+
+<Accordion title="Union Types">
+  ```typescript
+  function format(value: string | number): string {
+    return String(value);
+  }
+  ```
+  
+  <Note>Union types are not used for optimization but are parsed correctly.</Note>
+</Accordion>
+
+<Accordion title="Enums">
+  ```typescript
+  enum Color {
+    Red,
+    Green,
+    Blue
+  }
+
+  function getColorName(color: Color): string {
+    if (color === Color.Red) return 'Red';
+    if (color === Color.Green) return 'Green';
+    return 'Blue';
+  }
+  ```
+</Accordion>
+
+### Unsupported Features
+
+Porffor does not support some advanced TypeScript features:
+
+- **Decorators**: Experimental feature not implemented
+- **Namespaces**: Legacy feature, use ES modules instead
+- **Type Guards**: Runtime checks are not generated
+- **Generics with Constraints**: Generic types are erased
+- **Advanced Mapped Types**: Type system features not used at runtime
+
+## Practical Examples
+
+### Example: Typed Array Operations
+
+```typescript arrays.ts
+function sum(numbers: number[]): number {
+  let total: number = 0;
+  for (const num of numbers) {
+    total += num;
+  }
+  return total;
+}
+
+function average(numbers: number[]): number {
+  if (numbers.length === 0) return 0;
+  return sum(numbers) / numbers.length;
+}
+
+const data: number[] = [10, 20, 30, 40, 50];
+console.log('Sum:', sum(data));
+console.log('Average:', average(data));
+```
+
+Compile with optimizations:
+
+```bash
+porf --parse-types --opt-types -O2 arrays.ts
+```
+
+### Example: String Processing
+
+```typescript strings.ts
+function capitalize(str: string): string {
+  if (str.length === 0) return str;
+  return str[0].toUpperCase() + str.slice(1).toLowerCase();
+}
+
+function truncate(str: string, maxLength: number): string {
+  if (str.length <= maxLength) return str;
+  return str.slice(0, maxLength - 3) + '...';
+}
+
+const text: string = 'hello world';
+console.log(capitalize(text));
+console.log(truncate(text, 8));
+```
+
+Compile to native:
+
+```bash
+porf native -t --opt-types strings.ts strings
+./strings
+```
+
+### Example: Object Types
+
+```typescript objects.ts
+interface Person {
+  name: string;
+  age: number;
+  active: boolean;
+}
+
+function createPerson(name: string, age: number): Person {
+  return { name, age, active: true };
+}
+
+function describe(person: Person): string {
+  const status = person.active ? 'active' : 'inactive';
+  return `${person.name} (${person.age}) - ${status}`;
+}
+
+const person: Person = createPerson('Alice', 30);
+console.log(describe(person));
+```
+
+Compile to Wasm:
+
+```bash
+porf wasm -t --opt-types objects.ts objects.wasm
+```
+
+## Compilation Strategies
+
+### Development Workflow
+
+During development:
+
+```bash
+# Type-check with TypeScript
+tsc --noEmit input.ts
+
+# Run with Porffor
+porf -t input.ts
+```
+
+This combines TypeScript's type safety with Porffor's execution.
+
+### Production Build
+
+For production, enable all optimizations:
+
+```bash
+porf native -t --parse-types --opt-types -O2 --cO=Ofast input.ts output
+```
+
+This command:
+1. Parses TypeScript syntax (`-t --parse-types`)
+2. Uses type annotations for optimization (`--opt-types`)
+3. Applies Wasm-level optimization (`-O2`)
+4. Compiles to native with maximum C optimization (`--cO=Ofast`)
+
+### Quick Testing
+
+For quick tests without full optimization:
+
+```bash
+porf -t -O0 input.ts
+```
+
+## Limitations and Caveats
+
+### No Type Checking
+
+Porffor does not validate types:
+
+```typescript
+// This compiles but may behave unexpectedly
+function add(a: number, b: number): number {
+  return a + b;
+}
+
+add('hello', 'world');  // No type error from Porffor
+```
+
+Always use `tsc --noEmit` for type checking.
+
+### Type Erasure
+
+All types are erased at compile time:
+
+```typescript
+interface Config {
+  timeout: number;
+}
+
+// The interface doesn't exist at runtime
+// You cannot check typeof value === Config
+```
+
+### Limited Inference
+
+Porffor does not perform type inference. Provide explicit annotations for optimization:
+
+```typescript
+// Less optimal - type not explicit
+let result = compute();
+
+// Better - explicit type enables optimization
+let result: number = compute();
+```
+
+## Best Practices
+
+<Steps>
+<Step title="Add type annotations">
+  Annotate function parameters and return types:
+  ```typescript
+  function process(data: string[], count: number): boolean {
+    // ...
+  }
+  ```
+</Step>
+
+<Step title="Annotate variables in hot paths">
+  Add types to loop variables and frequently-accessed data:
+  ```typescript
+  for (let i: number = 0; i < data.length; i++) {
+    let value: number = data[i];
+    // process value
+  }
+  ```
+</Step>
+
+<Step title="Use interfaces for documentation">
+  Define interfaces for complex objects:
+  ```typescript
+  interface Config {
+    host: string;
+    port: number;
+    timeout: number;
+  }
+  ```
+</Step>
+
+<Step title="Type check before compiling">
+  Run TypeScript's type checker:
+  ```bash
+  tsc --noEmit && porf -t --opt-types input.ts
+  ```
+</Step>
+</Steps>
+
+## Performance Impact
+
+Type annotations with `--opt-types` can improve performance by:
+
+- **5-15%** for numeric computations (eliminates type checks)
+- **10-25%** for array operations (known element types)
+- **15-30%** for tight loops (optimized loop variables)
+
+Results vary based on code patterns and how much dynamic behavior is eliminated.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Optimization Strategies" icon="gauge-high" href="/guides/optimization-strategies">
+    Learn to write faster TypeScript/JavaScript
+  </Card>
+  
+  <Card title="Compiling to Wasm" icon="cube" href="/guides/compiling-to-wasm">
+    Compile TypeScript to WebAssembly
+  </Card>
+  
+  <Card title="Compiling to Native" icon="microchip" href="/guides/compiling-to-native">
+    Build native executables from TypeScript
+  </Card>
+  
+  <Card title="Debugging" icon="bug" href="/guides/debugging">
+    Debug compiled TypeScript code
+  </Card>
+</CardGroup>

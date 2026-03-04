@@ -1,0 +1,564 @@
+---
+title: Date Built-ins
+description: Date and time operations
+---
+
+Porffor implements the Date API for working with dates and times.
+
+## Date Constructor
+
+### Date
+
+Creates a new Date object.
+
+```javascript
+new Date()
+new Date(milliseconds: number)
+new Date(dateString: string)
+new Date(year: number, month: number, day?: number, hours?: number, minutes?: number, seconds?: number, milliseconds?: number)
+```
+
+```javascript
+// Current date/time
+const now = new Date();
+
+// From timestamp
+const date1 = new Date(1609459200000);  // 2021-01-01 00:00:00 UTC
+
+// From string
+const date2 = new Date('2024-01-01');
+const date3 = new Date('2024-01-01T12:00:00Z');
+
+// From components
+const date4 = new Date(2024, 0, 1);              // 2024-01-01 (month is 0-indexed!)
+const date5 = new Date(2024, 0, 1, 12, 30, 45);  // 2024-01-01 12:30:45
+```
+
+## Static Methods
+
+### Date.now
+
+Returns current timestamp in milliseconds.
+
+```javascript
+Date.now(): number
+```
+
+```javascript
+const timestamp = Date.now();
+console.log(timestamp);  // e.g., 1704067200000
+```
+
+### Date.parse
+
+Parses a date string and returns timestamp.
+
+```javascript
+Date.parse(dateString: string): number
+```
+
+```javascript
+const timestamp = Date.parse('2024-01-01T00:00:00Z');
+console.log(timestamp);  // 1704067200000
+```
+
+### Date.UTC
+
+Returns UTC timestamp from date components.
+
+```javascript
+Date.UTC(year: number, month: number, day?: number, hours?: number, minutes?: number, seconds?: number, milliseconds?: number): number
+```
+
+```javascript
+const timestamp = Date.UTC(2024, 0, 1, 12, 0, 0);
+console.log(timestamp);  // 1704110400000
+```
+
+## Get Methods (Local Time)
+
+### getFullYear
+
+Returns the year.
+
+```javascript
+date.getFullYear(): number
+```
+
+```javascript
+const date = new Date('2024-06-15');
+console.log(date.getFullYear());  // 2024
+```
+
+### getMonth
+
+Returns the month (0-11).
+
+```javascript
+date.getMonth(): number
+```
+
+```javascript
+const date = new Date('2024-06-15');
+console.log(date.getMonth());  // 5 (June is month 5, 0-indexed)
+```
+
+### getDate
+
+Returns the day of month (1-31).
+
+```javascript
+date.getDate(): number
+```
+
+```javascript
+const date = new Date('2024-06-15');
+console.log(date.getDate());  // 15
+```
+
+### getDay
+
+Returns the day of week (0-6, Sunday = 0).
+
+```javascript
+date.getDay(): number
+```
+
+```javascript
+const date = new Date('2024-06-15');  // Saturday
+console.log(date.getDay());  // 6
+```
+
+### getHours
+
+Returns the hours (0-23).
+
+```javascript
+date.getHours(): number
+```
+
+```javascript
+const date = new Date('2024-06-15T14:30:00');
+console.log(date.getHours());  // 14
+```
+
+### getMinutes
+
+Returns the minutes (0-59).
+
+```javascript
+date.getMinutes(): number
+```
+
+```javascript
+const date = new Date('2024-06-15T14:30:00');
+console.log(date.getMinutes());  // 30
+```
+
+### getSeconds
+
+Returns the seconds (0-59).
+
+```javascript
+date.getSeconds(): number
+```
+
+```javascript
+const date = new Date('2024-06-15T14:30:45');
+console.log(date.getSeconds());  // 45
+```
+
+### getMilliseconds
+
+Returns the milliseconds (0-999).
+
+```javascript
+date.getMilliseconds(): number
+```
+
+```javascript
+const date = new Date('2024-06-15T14:30:45.123');
+console.log(date.getMilliseconds());  // 123
+```
+
+### getTime
+
+Returns the timestamp in milliseconds.
+
+```javascript
+date.getTime(): number
+```
+
+```javascript
+const date = new Date('2024-01-01T00:00:00Z');
+console.log(date.getTime());  // 1704067200000
+```
+
+### getTimezoneOffset
+
+Returns the timezone offset in minutes.
+
+```javascript
+date.getTimezoneOffset(): number
+```
+
+```javascript
+const date = new Date();
+console.log(date.getTimezoneOffset());  // e.g., -480 for UTC+8
+```
+
+## Get Methods (UTC)
+
+### getUTCFullYear
+
+Returns the UTC year.
+
+```javascript
+date.getUTCFullYear(): number
+```
+
+### getUTCMonth
+
+Returns the UTC month (0-11).
+
+```javascript
+date.getUTCMonth(): number
+```
+
+### getUTCDate
+
+Returns the UTC day of month.
+
+```javascript
+date.getUTCDate(): number
+```
+
+### getUTCDay
+
+Returns the UTC day of week.
+
+```javascript
+date.getUTCDay(): number
+```
+
+### getUTCHours
+
+Returns the UTC hours.
+
+```javascript
+date.getUTCHours(): number
+```
+
+### getUTCMinutes
+
+Returns the UTC minutes.
+
+```javascript
+date.getUTCMinutes(): number
+```
+
+### getUTCSeconds
+
+Returns the UTC seconds.
+
+```javascript
+date.getUTCSeconds(): number
+```
+
+### getUTCMilliseconds
+
+Returns the UTC milliseconds.
+
+```javascript
+date.getUTCMilliseconds(): number
+```
+
+## Set Methods (Local Time)
+
+### setFullYear
+
+Sets the year.
+
+```javascript
+date.setFullYear(year: number, month?: number, day?: number): number
+```
+
+```javascript
+const date = new Date('2024-06-15');
+date.setFullYear(2025);
+console.log(date.getFullYear());  // 2025
+```
+
+### setMonth
+
+Sets the month.
+
+```javascript
+date.setMonth(month: number, day?: number): number
+```
+
+```javascript
+const date = new Date('2024-06-15');
+date.setMonth(11);  // December
+console.log(date.getMonth());  // 11
+```
+
+### setDate
+
+Sets the day of month.
+
+```javascript
+date.setDate(day: number): number
+```
+
+```javascript
+const date = new Date('2024-06-15');
+date.setDate(20);
+console.log(date.getDate());  // 20
+```
+
+### setHours
+
+Sets the hours.
+
+```javascript
+date.setHours(hours: number, minutes?: number, seconds?: number, milliseconds?: number): number
+```
+
+```javascript
+const date = new Date('2024-06-15T14:30:00');
+date.setHours(18);
+console.log(date.getHours());  // 18
+```
+
+### setMinutes
+
+Sets the minutes.
+
+```javascript
+date.setMinutes(minutes: number, seconds?: number, milliseconds?: number): number
+```
+
+### setSeconds
+
+Sets the seconds.
+
+```javascript
+date.setSeconds(seconds: number, milliseconds?: number): number
+```
+
+### setMilliseconds
+
+Sets the milliseconds.
+
+```javascript
+date.setMilliseconds(milliseconds: number): number
+```
+
+### setTime
+
+Sets the timestamp.
+
+```javascript
+date.setTime(time: number): number
+```
+
+```javascript
+const date = new Date();
+date.setTime(1704067200000);  // 2024-01-01 00:00:00 UTC
+```
+
+## Set Methods (UTC)
+
+### setUTCFullYear
+
+Sets the UTC year.
+
+```javascript
+date.setUTCFullYear(year: number, month?: number, day?: number): number
+```
+
+### setUTCMonth
+
+Sets the UTC month.
+
+```javascript
+date.setUTCMonth(month: number, day?: number): number
+```
+
+### setUTCDate
+
+Sets the UTC day of month.
+
+```javascript
+date.setUTCDate(day: number): number
+```
+
+### setUTCHours
+
+Sets the UTC hours.
+
+```javascript
+date.setUTCHours(hours: number, minutes?: number, seconds?: number, milliseconds?: number): number
+```
+
+### setUTCMinutes
+
+Sets the UTC minutes.
+
+```javascript
+date.setUTCMinutes(minutes: number, seconds?: number, milliseconds?: number): number
+```
+
+### setUTCSeconds
+
+Sets the UTC seconds.
+
+```javascript
+date.setUTCSeconds(seconds: number, milliseconds?: number): number
+```
+
+### setUTCMilliseconds
+
+Sets the UTC milliseconds.
+
+```javascript
+date.setUTCMilliseconds(milliseconds: number): number
+```
+
+## String Conversion Methods
+
+### toString
+
+Returns string representation.
+
+```javascript
+date.toString(): string
+```
+
+```javascript
+const date = new Date('2024-06-15T14:30:00');
+console.log(date.toString());
+// 'Sat Jun 15 2024 14:30:00 GMT+0000 (UTC)'
+```
+
+### toISOString
+
+Returns ISO 8601 string.
+
+```javascript
+date.toISOString(): string
+```
+
+```javascript
+const date = new Date('2024-06-15T14:30:00Z');
+console.log(date.toISOString());
+// '2024-06-15T14:30:00.000Z'
+```
+
+### toDateString
+
+Returns date portion as string.
+
+```javascript
+date.toDateString(): string
+```
+
+```javascript
+const date = new Date('2024-06-15');
+console.log(date.toDateString());
+// 'Sat Jun 15 2024'
+```
+
+### toTimeString
+
+Returns time portion as string.
+
+```javascript
+date.toTimeString(): string
+```
+
+```javascript
+const date = new Date('2024-06-15T14:30:00');
+console.log(date.toTimeString());
+// '14:30:00 GMT+0000 (UTC)'
+```
+
+### toUTCString
+
+Returns UTC string.
+
+```javascript
+date.toUTCString(): string
+```
+
+```javascript
+const date = new Date('2024-06-15T14:30:00Z');
+console.log(date.toUTCString());
+// 'Sat, 15 Jun 2024 14:30:00 GMT'
+```
+
+### toJSON
+
+Returns JSON representation (same as toISOString).
+
+```javascript
+date.toJSON(): string
+```
+
+```javascript
+const date = new Date('2024-06-15');
+console.log(date.toJSON());
+// '2024-06-15T00:00:00.000Z'
+```
+
+## Usage Examples
+
+### Date Arithmetic
+
+```javascript
+// Add days
+function addDays(date, days) {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+}
+
+const today = new Date('2024-01-15');
+const nextWeek = addDays(today, 7);
+console.log(nextWeek.toISOString());
+// '2024-01-22T00:00:00.000Z'
+```
+
+### Date Formatting
+
+```javascript
+function formatDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+const date = new Date('2024-06-15');
+console.log(formatDate(date));  // '2024-06-15'
+```
+
+### Time Differences
+
+```javascript
+function daysBetween(date1, date2) {
+  const diff = Math.abs(date2 - date1);
+  return Math.floor(diff / (1000 * 60 * 60 * 24));
+}
+
+const start = new Date('2024-01-01');
+const end = new Date('2024-01-31');
+console.log(daysBetween(start, end));  // 30
+```
+
+## See Also
+
+- [Math Built-ins](/api/builtins/math) - Mathematical operations
+- [Global Functions](/api/builtins/globals) - parseInt, parseFloat
+- [ByteString Utilities](/api/porffor/bytestring) - String formatting helpers

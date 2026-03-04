@@ -1,0 +1,251 @@
+---
+title: Built-ins Overview
+description: Standard JavaScript built-in objects and functions in Porffor
+---
+
+Porffor implements many standard JavaScript built-in objects and functions, compiled directly to WebAssembly for maximum performance.
+
+## Supported Built-ins
+
+Porffor provides implementations for the following built-in categories:
+
+### Global Objects
+
+- **Primitive Constructors**: `Number`, `String`, `Boolean`, `Symbol`, `BigInt`
+- **Error Objects**: `Error`, `TypeError`, `RangeError`, `ReferenceError`, `SyntaxError`, `EvalError`, `URIError`, `AggregateError`
+- **Utility Functions**: `parseInt`, `parseFloat`, `isNaN`, `isFinite`, `encodeURI`, `decodeURI`, `encodeURIComponent`, `decodeURIComponent`
+
+### Collections
+
+- [Array](/api/builtins/array) - Arrays and array methods
+- [Object](/api/builtins/object) - Objects and object methods
+- **Set** - Set collection
+- **Map** - Map collection
+- **WeakSet** - Weak set collection
+- **WeakMap** - Weak map collection
+- **WeakRef** - Weak references
+
+### Text Processing
+
+- [String](/api/builtins/string) - String methods and operations
+- [RegExp](/api/builtins/regexp) - Regular expressions
+
+### Numbers & Dates
+
+- [Math](/api/builtins/math) - Mathematical functions
+- [Date](/api/builtins/date) - Date and time operations
+
+### Binary Data
+
+- **ArrayBuffer** - Raw binary data buffer
+- **SharedArrayBuffer** - Shared memory buffer
+- **DataView** - View for reading/writing buffers
+- **Typed Arrays**: `Uint8Array`, `Int8Array`, `Uint8ClampedArray`, `Uint16Array`, `Int16Array`, `Uint32Array`, `Int32Array`, `Float32Array`, `Float64Array`, `BigInt64Array`, `BigUint64Array`
+
+### Structured Data
+
+- **JSON** - JSON parsing and serialization
+- **Promise** - Asynchronous operations
+
+### Reflection
+
+- **Reflect** - Reflection API
+
+### Other
+
+- **Function** - Function constructor and methods
+- **Crypto** - Cryptographic operations (limited)
+- **console** - Console logging
+
+## Implementation Status
+
+Most built-ins are fully implemented according to ECMAScript specifications. Some built-ins may have limitations:
+
+### Fully Implemented
+
+✅ Array methods (map, filter, reduce, etc.)  
+✅ String methods (split, slice, indexOf, etc.)  
+✅ Object methods (keys, values, entries, etc.)  
+✅ Math functions  
+✅ Date operations  
+✅ RegExp with full pattern support  
+✅ Typed arrays  
+✅ JSON parse/stringify  
+
+### Partially Implemented
+
+⚠️ Promises (basic support)  
+⚠️ Crypto (limited operations)  
+⚠️ Reflect (most operations supported)  
+
+### Not Yet Implemented
+
+❌ Proxy  
+❌ Async/await  
+❌ Generators  
+❌ Internationalization (Intl)  
+
+## Usage
+
+All built-ins work exactly as you'd expect in standard JavaScript:
+
+```javascript
+// Arrays
+const arr = [1, 2, 3, 4, 5];
+const doubled = arr.map(x => x * 2);
+console.log(doubled); // [2, 4, 6, 8, 10]
+
+// Strings
+const str = 'Hello, World!';
+const upper = str.toUpperCase();
+console.log(upper); // 'HELLO, WORLD!'
+
+// Objects
+const obj = { a: 1, b: 2, c: 3 };
+const keys = Object.keys(obj);
+console.log(keys); // ['a', 'b', 'c']
+
+// Math
+const num = Math.sqrt(16);
+console.log(num); // 4
+
+// Date
+const now = new Date();
+console.log(now.getFullYear()); // Current year
+
+// RegExp
+const regex = /\d+/g;
+const matches = 'abc 123 def 456'.match(regex);
+console.log(matches); // ['123', '456']
+```
+
+## ECMAScript Compliance
+
+Porffor aims for ECMAScript 2023+ compliance for implemented features. Each built-in follows the specification closely:
+
+```javascript
+// Specification-compliant behavior
+const arr = [1, 2, 3];
+
+// Array.prototype.at (ES2022)
+console.log(arr.at(-1));  // 3
+
+// Array.prototype.findLast (ES2023)
+const last = arr.findLast(x => x > 1);
+console.log(last); // 3
+
+// String.prototype.replaceAll (ES2021)
+const result = 'aabbcc'.replaceAll('b', 'x');
+console.log(result); // 'aaxxcc'
+```
+
+## Performance
+
+Built-ins are compiled to optimized WebAssembly:
+
+- **Zero overhead**: No interpreter, direct WebAssembly execution
+- **Specialized paths**: Optimized for common types (numbers, strings)
+- **Memory efficient**: Custom memory layouts for JavaScript types
+- **SIMD support**: Vectorized operations where applicable
+
+### Performance Example
+
+```javascript
+// Highly optimized in Porffor
+const arr = new Array(1000000);
+for (let i = 0; i < arr.length; i++) {
+  arr[i] = i * 2;
+}
+
+const sum = arr.reduce((acc, x) => acc + x, 0);
+console.log(sum);
+```
+
+## Type Handling
+
+Porffor's built-ins handle JavaScript's dynamic types correctly:
+
+```javascript
+// Type coercion works as expected
+console.log('5' + 3);        // '53'
+console.log('5' - 3);        // 2
+console.log([1,2,3] + [4,5]); // '1,2,34,5'
+
+// Type checking
+console.log(typeof 42);              // 'number'
+console.log(typeof 'hello');         // 'string'
+console.log(Array.isArray([1,2,3])); // true
+```
+
+## Error Handling
+
+Built-ins throw standard JavaScript errors:
+
+```javascript
+try {
+  const arr = new Array(-1); // Invalid length
+} catch (e) {
+  console.log(e instanceof RangeError); // true
+  console.log(e.message); // 'Invalid array length'
+}
+
+try {
+  const obj = null;
+  obj.property; // Cannot read property of null
+} catch (e) {
+  console.log(e instanceof TypeError); // true
+}
+```
+
+## Console API
+
+The `console` object provides logging functionality:
+
+```javascript
+console.log('Hello, World!');
+console.error('An error occurred');
+console.warn('Warning message');
+
+// Object inspection
+console.log({ name: 'Alice', age: 30 });
+console.log([1, 2, 3, 4, 5]);
+```
+
+## Global Functions
+
+### Parsing
+
+```javascript
+const num1 = parseInt('42');        // 42
+const num2 = parseInt('2a', 16);    // 42 (hexadecimal)
+const num3 = parseFloat('3.14');    // 3.14
+```
+
+### Type Checking
+
+```javascript
+console.log(isNaN(NaN));           // true
+console.log(isNaN('hello'));       // true
+console.log(isFinite(42));         // true
+console.log(isFinite(Infinity));   // false
+```
+
+### URI Encoding
+
+```javascript
+const encoded = encodeURIComponent('hello world');
+console.log(encoded); // 'hello%20world'
+
+const decoded = decodeURIComponent(encoded);
+console.log(decoded); // 'hello world'
+```
+
+## See Also
+
+- [Global Functions](/api/builtins/globals) - Global utility functions
+- [String](/api/builtins/string) - String methods
+- [Array](/api/builtins/array) - Array methods
+- [Object](/api/builtins/object) - Object methods
+- [Math](/api/builtins/math) - Math functions
+- [Date](/api/builtins/date) - Date operations
+- [RegExp](/api/builtins/regexp) - Regular expressions

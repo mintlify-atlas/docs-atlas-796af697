@@ -1,0 +1,329 @@
+---
+title: "Compiling to WebAssembly"
+description: "Learn how to compile JavaScript to standalone WebAssembly modules with Porffor"
+---
+
+## Overview
+
+Porffor can compile JavaScript files directly to WebAssembly (Wasm) binaries using its ahead-of-time (AOT) compilation approach. The generated Wasm modules are optimized and self-contained, with minimal imports.
+
+<Note>
+  Porffor-generated Wasm does not currently use an import standard like WASI, so standalone usage is limited. The modules work best when run through Porffor's runtime or imported into compatible environments.
+</Note>
+
+## Basic Usage
+
+The `wasm` command compiles JavaScript to a WebAssembly binary:
+
+<Steps>
+<Step title="Create a JavaScript file">
+
+Create a simple example to compile:
+
+```javascript hello.js
+console.log('Hello from Wasm!');
+
+function fibonacci(n) {
+  if (n <= 1) return n;
+  return fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+console.log('fib(10):', fibonacci(10));
+```
+
+</Step>
+
+<Step title="Compile to WebAssembly">
+
+Use the `porf wasm` command to generate a `.wasm` file:
+
+```bash
+porf wasm hello.js hello.wasm
+```
+
+Porffor will parse, optimize, and compile your JavaScript into a WebAssembly binary.
+
+</Step>
+
+<Step title="Check the output">
+
+The resulting `hello.wasm` file contains the compiled WebAssembly bytecode:
+
+```bash
+ls -lh hello.wasm
+# Output shows file size, typically very compact
+```
+
+</Step>
+</Steps>
+
+## Understanding Wasm Output
+
+### Module Structure
+
+Porffor generates spec-compliant WebAssembly modules with:
+
+- **Zero constant runtime code**: No preluded JavaScript runtime
+- **Minimal imports**: Only I/O operations require imports
+- **Optimized bytecode**: Includes multiple optimization passes
+- **Type-aware compilation**: Uses internal type information for efficient code generation
+
+### Wasm Proposals Used
+
+Porffor uses widely-supported WebAssembly proposals:
+
+- **Multi-value** (required): Functions can return multiple values
+- **Non-trapping float-to-int conversions** (required): Safe numeric conversions
+- **Bulk memory operations** (optional): Efficient memory copying
+- **Exception handling** (optional): For error handling
+- **Tail calls** (opt-in): Disabled by default, enable with `--tail-calls`
+
+<Tip>
+  These proposals are supported in all modern JavaScript engines (V8, SpiderMonkey, JavaScriptCore) and standalone Wasm runtimes.
+</Tip>
+
+## Working with Compiled Wasm
+
+### Inspecting Generated Code
+
+Use the `-f` flag to see disassembled WebAssembly for your functions:
+
+```bash
+porf wasm -f hello.js hello.wasm
+```
+
+This prints the generated Wasm instructions with debug annotations.
+
+### Disassembly Mode
+
+For detailed debugging, compile with the `-d` flag to include names and debug information:
+
+```bash
+porf wasm -d hello.js hello.wasm
+```
+
+The debug mode:
+- Preserves function and variable names in Wasm
+- Adds source location mappings
+- Enables better debugging in Wasm tools
+
+## Optimization Levels
+
+Control compilation optimization with the `-O` flag:
+
+### -O0: No Optimization
+
+```bash
+porf wasm -O0 input.js output.wasm
+```
+
+Disables all optimizations. Useful for debugging when you want predictable output.
+
+### -O1: Basic Optimization (Default)
+
+```bash
+porf wasm -O1 input.js output.wasm
+# Or simply:
+porf wasm input.js output.wasm
+```
+
+Enables:
+- Instruction simplification
+- Dead code elimination
+- Wasm import tree-shaking
+
+### -O2: Advanced Optimization
+
+```bash
+porf wasm -O2 input.js output.wasm
+```
+
+Enables:
+- All -O1 optimizations
+- Partial evaluation (Cyclone optimizer)
+- Constant folding
+- More aggressive inlining
+
+<Warning>
+  -O2 is experimental and may be unstable for some code patterns.
+</Warning>
+
+## Real-World Examples
+
+### Example: String Operations
+
+```javascript strcat.js
+const a = 'alfa';
+const b = 'bravo';
+const c = 'charlie';
+const d = 'delta';
+const e = 'echo';
+
+let t = performance.now();
+
+for (let i = 0; i < 14000; i++) {
+  let result = a + b + c + d + e;
+}
+
+console.log('Time:', performance.now() - t, 'ms');
+```
+
+Compile with optimization:
+
+```bash
+porf wasm -O2 strcat.js strcat.wasm
+```
+
+### Example: Computational Code
+
+```javascript loops.js
+const data = new Array(5000).fill(0).map(() => Math.random());
+
+let sum = 0;
+const len = data.length;
+for (let i = 0; i < len; i++) {
+  sum += data[i];
+}
+
+console.log('Sum:', sum);
+```
+
+Compile for maximum performance:
+
+```bash
+porf wasm -O2 --fast-length loops.js loops.wasm
+```
+
+The `--fast-length` flag enables non-compliant optimizations for faster array length access.
+
+## Advanced Compilation Options
+
+### Parser Selection
+
+Choose which JavaScript parser to use:
+
+```bash
+porf wasm --parser=acorn input.js output.wasm
+porf wasm --parser=@babel/parser input.js output.wasm
+porf wasm --parser=meriyah input.js output.wasm
+porf wasm --parser=hermes-parser input.js output.wasm
+```
+
+<Info>
+  Default is `acorn`. Babel parser is required for TypeScript support.
+</Info>
+
+### Memory Configuration
+
+Adjust page size for memory management:
+
+```bash
+porf wasm --page-size=16384 input.js output.wasm
+```
+
+Porffor uses smaller page sizes internally (65536 / 4 = 16384) for efficiency.
+
+### Valtype Selection
+
+```bash
+porf wasm --valtype=f64 input.js output.wasm  # Default: f64
+porf wasm --valtype=i32 input.js output.wasm  # Experimental: i32
+```
+
+<Warning>
+  Using `--valtype=i32` is experimental and not well-supported for most code.
+</Warning>
+
+## Performance Considerations
+
+### What Compiles Well
+
+Porffor excels at:
+- Numeric computations
+- String manipulation with ASCII/Latin-1 characters (ByteString optimization)
+- Array operations with known types
+- Loop-heavy code
+- Pure functions without dynamic behavior
+
+### What to Avoid
+
+For optimal Wasm output:
+- Minimize dynamic property access on objects
+- Avoid `eval()` and `Function()` (not supported in AOT compilation)
+- Reduce polymorphic code paths
+- Use typed arrays when possible
+- Prefer iteration over complex object traversal
+
+## Integration with Other Tools
+
+### Using with wasm-opt
+
+Further optimize with Binaryen's `wasm-opt`:
+
+```bash
+porf wasm input.js temp.wasm
+wasm-opt -O3 temp.wasm -o output.wasm
+```
+
+### Using with wasm2wat
+
+Convert to WebAssembly text format for inspection:
+
+```bash
+porf wasm input.js output.wasm
+wasm2wat output.wasm -o output.wat
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Compilation fails with parse errors">
+    Check your JavaScript syntax. Porffor supports most ES6+ features but has limitations:
+    - No async/await in some contexts (known bugs)
+    - No eval() or Function() constructor
+    - Limited scope handling (variables between scopes except args and globals)
+
+    Try running with `-d` for better error messages:
+    ```bash
+    porf wasm -d input.js output.wasm
+    ```
+  </Accordion>
+
+  <Accordion title="Generated Wasm is too large">
+    Use optimization flags:
+    ```bash
+    porf wasm -O2 --no-passive-data input.js output.wasm
+    ```
+
+    Check if you're creating many large objects, as object-heavy code generates more Wasm.
+  </Accordion>
+
+  <Accordion title="Runtime errors in generated Wasm">
+    Enable debug mode and inspect the output:
+    ```bash
+    porf wasm -d -f input.js output.wasm
+    ```
+
+    This includes names and shows generated instructions for debugging.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Native Compilation" icon="microchip" href="/guides/compiling-to-native">
+    Compile JavaScript to native executables
+  </Card>
+  
+  <Card title="Optimization Strategies" icon="gauge-high" href="/guides/optimization-strategies">
+    Learn how to write faster code
+  </Card>
+  
+  <Card title="Debugging" icon="bug" href="/guides/debugging">
+    Debug compiled WebAssembly code
+  </Card>
+  
+  <Card title="TypeScript Support" icon="code" href="/guides/using-typescript">
+    Use TypeScript with Porffor
+  </Card>
+</CardGroup>

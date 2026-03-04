@@ -1,0 +1,370 @@
+---
+title: porf native
+description: Compile JavaScript to native executables
+---
+
+Compile JavaScript or TypeScript to standalone native executables using Porffor's 2c (Wasm → C) compiler.
+
+<Warning>
+2c is Porffor's experimental WebAssembly to C compiler. While functional, it's still in development.
+</Warning>
+
+## Usage
+
+```bash
+porf native [flags] input.js output[.exe]
+```
+
+## Examples
+
+<CodeGroup>
+```bash Linux/macOS
+porf native script.js myapp
+./myapp
+```
+
+```bash Windows
+porf native script.js myapp.exe
+myapp.exe
+```
+
+```bash With optimization
+porf native -O3 --cO=Ofast script.js myapp
+```
+
+```bash Custom compiler
+porf native --compiler=gcc script.js myapp
+porf native --compiler=zig script.js myapp
+```
+</CodeGroup>
+
+## Arguments
+
+<ParamField path="input.js" type="string" required>
+  JavaScript or TypeScript source file
+</ParamField>
+
+<ParamField path="output" type="string" required>
+  Output executable file path (`.exe` on Windows)
+</ParamField>
+
+## Compiler Options
+
+<ParamField path="--compiler" type="string" default="clang">
+  C compiler to use: `clang`, `gcc`, or `zig`
+  
+  ```bash
+  porf native --compiler=gcc script.js output
+  porf native --compiler=zig script.js output
+  ```
+  
+  - `clang`: Default, good optimization and performance
+  - `gcc`: Alternative, widely available
+  - `zig`: Experimental, cross-compilation support
+</ParamField>
+
+<ParamField path="--cO" type="string" default="Ofast">
+  C compiler optimization level: `Ofast`, `O3`, `O2`, `O1`, or `O0`
+  
+  ```bash
+  porf native --cO=O3 script.js output
+  porf native --cO=O0 script.js debug_output
+  ```
+  
+  - `Ofast`: Maximum optimization (default), may break strict compliance
+  - `O3`: Aggressive optimization
+  - `O2`: Moderate optimization, good balance
+  - `O1`: Basic optimization
+  - `O0`: No C compiler optimization, fastest compilation
+</ParamField>
+
+## JavaScript Compilation Flags
+
+All standard [optimization flags](/cli/overview#global-flags) apply:
+
+<ParamField path="-On" type="flag">
+  Porffor optimization level (0-3)
+  
+  ```bash
+  porf native -O3 --cO=Ofast script.js output
+  ```
+</ParamField>
+
+<ParamField path="-d" type="flag">
+  Debug mode - disables stripping, includes debug symbols
+  
+  ```bash
+  porf native -d script.js debug_output
+  ```
+</ParamField>
+
+<ParamField path="--parse-types" type="flag">
+  Enable TypeScript parsing
+</ParamField>
+
+<ParamField path="--opt-types" type="flag">
+  Optimize using type annotations
+</ParamField>
+
+## Compilation Process
+
+The native compilation involves multiple stages:
+
+1. **JavaScript → Wasm**: Porffor compiles JS to WebAssembly
+2. **Wasm → C**: 2c translates Wasm bytecode to C source
+3. **C → Native**: C compiler produces native executable
+4. **Strip**: Symbols removed (unless `-d` flag used)
+
+```bash
+$ porf native script.js myapp
+compiled in 203.45ms
+```
+
+## Output Binary Details
+
+By default, output binaries are:
+- Fully optimized with `-Ofast`
+- Stripped of debug symbols
+- Statically linked where possible
+- Platform-specific native code
+
+<CodeGroup>
+```bash Production binary
+porf native -O3 --cO=Ofast script.js myapp
+# Smallest, fastest binary
+```
+
+```bash Debug binary
+porf native -d -O0 --cO=O0 script.js myapp_debug
+# Includes symbols, easier to debug
+```
+</CodeGroup>
+
+## Platform Support
+
+<Tabs>
+  <Tab title="Linux">
+    ```bash
+    # Default clang
+    porf native script.js myapp
+    
+    # Using gcc
+    porf native --compiler=gcc script.js myapp
+    
+    # Using zig for cross-compilation
+    porf native --compiler=zig script.js myapp
+    ```
+  </Tab>
+  
+  <Tab title="macOS">
+    ```bash
+    # Requires Xcode Command Line Tools
+    porf native script.js myapp
+    
+    # Universal binary (if supported)
+    porf native --compiler=clang script.js myapp
+    ```
+  </Tab>
+  
+  <Tab title="Windows">
+    ```bash
+    # Requires MSVC, MinGW, or Clang
+    porf native script.js myapp.exe
+    
+    # Using MinGW gcc
+    porf native --compiler=gcc script.js myapp.exe
+    ```
+  </Tab>
+</Tabs>
+
+## Performance Tuning
+
+### Maximum Performance
+
+```bash
+porf native -O3 --cO=Ofast --opt-types --parse-types script.ts myapp
+```
+
+Combines:
+- JavaScript optimizations (`-O3`)
+- Aggressive C optimization (`--cO=Ofast`)
+- Type-based optimization (`--opt-types`)
+
+### Debug Performance
+
+```bash
+porf native -d -O0 --cO=O0 script.js myapp_debug
+```
+
+Use for:
+- Debugging crashes
+- Profiling with external tools
+- Understanding generated code
+
+### Balanced Build
+
+```bash
+porf native -O2 --cO=O2 script.js myapp
+```
+
+Good for:
+- Development iteration
+- Reasonable performance
+- Faster compile times
+
+## Compiler-Specific Features
+
+<Tabs>
+  <Tab title="Clang (Default)">
+    ```bash
+    porf native --compiler=clang script.js myapp
+    ```
+    
+    - Modern optimization techniques
+    - Good error messages
+    - Fast compilation
+    - Recommended for most use cases
+  </Tab>
+  
+  <Tab title="GCC">
+    ```bash
+    porf native --compiler=gcc script.js myapp
+    ```
+    
+    - Widely available
+    - Mature optimization
+    - Good for older systems
+  </Tab>
+  
+  <Tab title="Zig">
+    ```bash
+    porf native --compiler=zig script.js myapp
+    ```
+    
+    - Cross-compilation support
+    - Experimental in Porffor
+    - Modern tooling
+  </Tab>
+</Tabs>
+
+## Binary Size Comparison
+
+<CodeGroup>
+```bash Smallest binary
+porf native -O3 --cO=Ofast script.js myapp
+strip myapp
+# Already stripped by default
+```
+
+```bash Typical sizes
+# Simple "Hello World": ~50-100 KB
+# Medium app: ~200-500 KB  
+# Complex app: ~1-2 MB
+```
+</CodeGroup>
+
+<Note>
+Binaries include no runtime dependencies - Porffor has zero constant runtime/preluded code.
+</Note>
+
+## Debugging Native Binaries
+
+```bash
+# Compile with debug info
+porf native -d script.js myapp_debug
+
+# Use with debugger
+gdb ./myapp_debug
+lldb ./myapp_debug
+```
+
+## Environment Variables
+
+<ParamField path="CC" type="string">
+  Override C compiler (alternative to `--compiler`)
+  
+  ```bash
+  CC=gcc porf native script.js myapp
+  CC=clang-15 porf native script.js myapp
+  ```
+</ParamField>
+
+## Troubleshooting
+
+### Compiler Not Found
+
+```bash
+# Install clang
+sudo apt install clang      # Debian/Ubuntu
+brew install llvm           # macOS
+
+# Or use gcc
+porf native --compiler=gcc script.js myapp
+```
+
+### Runtime Errors
+
+```bash
+# Build with debug info
+porf native -d script.js myapp_debug
+
+# Run to see detailed errors
+./myapp_debug
+```
+
+### Large Binary Size
+
+```bash
+# Use maximum optimization
+porf native -O3 --cO=Ofast script.js myapp
+
+# Already stripped by default
+# Manual strip if needed:
+strip myapp
+```
+
+### Slow Compilation
+
+```bash
+# Reduce Porffor optimization
+porf native -O1 --cO=O2 script.js myapp
+
+# Or disable all optimization for testing
+porf native -O0 --cO=O0 script.js myapp
+```
+
+## Cross-Compilation
+
+While Porffor itself is platform-independent, native compilation produces platform-specific binaries.
+
+```bash
+# Using zig for cross-compilation (experimental)
+porf native --compiler=zig script.js myapp
+```
+
+## Comparison with Other Approaches
+
+| Feature | Native | Wasm | Run |
+|---------|--------|------|-----|
+| Startup Time | Fastest | Fast | Fast |
+| Binary Size | Small | Smaller | N/A |
+| Performance | Best | Excellent | Very Good |
+| Portability | Platform-specific | Cross-platform | Requires Porffor |
+| Distribution | Single binary | Requires runtime | Source code |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="C Output" icon="code" href="/cli/c">
+    View generated C source code
+  </Card>
+  <Card title="Profile" icon="chart-line" href="/cli/profile">
+    Optimize before compiling
+  </Card>
+  <Card title="Lambda" icon="aws" href="/cli/lambda">
+    Deploy as serverless function
+  </Card>
+  <Card title="Run Command" icon="play" href="/cli/run">
+    Test before compiling
+  </Card>
+</CardGroup>

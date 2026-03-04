@@ -1,0 +1,618 @@
+---
+title: "Optimization Strategies"
+description: "Learn how to write JavaScript that compiles to fast WebAssembly and native code"
+---
+
+## Overview
+
+Porffor's ahead-of-time (AOT) compilation model means optimization happens at compile time, not runtime. Understanding how to write code that compiles efficiently is key to achieving maximum performance.
+
+This guide covers compiler optimization flags, coding patterns that optimize well, and techniques to avoid.
+
+## Compiler Optimization Levels
+
+Porffor provides multiple optimization levels that control compilation behavior.
+
+### -O0: No Optimization
+
+```bash
+porf -O0 input.js
+```
+
+**Disables all optimizations:**
+- Fastest compilation
+- Largest code size
+- Easiest to debug
+- Predictable output
+
+**Use when:**
+- Debugging compilation issues
+- Testing compiler behavior
+- Developing and iterating quickly
+
+### -O1: Basic Optimization (Default)
+
+```bash
+porf -O1 input.js
+# Or simply:
+porf input.js
+```
+
+**Enables basic optimizations:**
+- Instruction simplification
+- Dead code elimination
+- Wasm import tree-shaking
+- Basic constant folding
+
+**Use when:**
+- General development
+- Balanced compilation speed and performance
+- First production builds
+
+### -O2: Advanced Optimization
+
+```bash
+porf -O2 input.js
+```
+
+**Enables aggressive optimizations:**
+- All -O1 optimizations
+- Partial evaluation (Cyclone optimizer)
+- Advanced constant folding
+- More aggressive inlining
+- Type-based optimizations
+
+**Use when:**
+- Production builds
+- Performance is critical
+- You've tested for correctness
+
+<Warning>
+  -O2 is experimental and may produce incorrect results for some code patterns. Always test thoroughly.
+</Warning>
+
+## Advanced Optimizer Flags
+
+### Cyclone: Partial Evaluator
+
+Cyclone performs compile-time evaluation and simplification:
+
+```bash
+porf --cyclone input.js
+# Automatically enabled with -O2
+porf -O2 input.js
+```
+
+**What Cyclone does:**
+- Evaluates constant expressions at compile time
+- Simplifies known branches
+- Eliminates dead code paths
+- Optimizes type switches
+- Reduces local variable usage
+
+**Example optimization:**
+
+```javascript
+// Before Cyclone
+const SIZE = 100;
+for (let i = 0; i < SIZE * 2; i++) {
+  console.log(i);
+}
+
+// After Cyclone (conceptually)
+for (let i = 0; i < 200; i++) {
+  console.log(i);
+}
+```
+
+### Profile-Guided Optimization (PGO)
+
+<Info>
+  PGO is available for native compilation only.
+</Info>
+
+PGO uses runtime profiling to optimize hot code paths:
+
+```bash
+porf native --pgo input.js output
+```
+
+**How PGO works:**
+
+1. Porffor instruments your code with profiling hooks
+2. You run the binary with representative workload
+3. Profiling data identifies hot paths and type patterns
+4. Compiler optimizes based on actual usage
+
+**Best for:**
+- Long-running applications
+- Predictable workloads
+- CPU-intensive code
+- Applications with clear hot paths
+
+**Example usage:**
+
+```bash
+porf native --pgo benchmark.js bench
+./bench  # Run with typical workload
+# Porffor collects profile data automatically
+```
+
+### Fast Length Optimization
+
+Non-compliant optimization for faster `.length` access:
+
+```bash
+porf --fast-length input.js
+```
+
+**What it does:**
+- Caches array/string length
+- Skips dynamic length updates in some cases
+- Assumes length doesn't change unexpectedly
+
+**Trade-offs:**
+- Faster array iteration (5-10%)
+- May break code that modifies length dynamically
+- Not spec-compliant
+
+**Safe usage:**
+
+```javascript
+// Safe with --fast-length
+const data = [1, 2, 3, 4, 5];
+for (let i = 0; i < data.length; i++) {
+  console.log(data[i]);
+}
+
+// Potentially unsafe
+const arr = [1, 2, 3];
+for (let i = 0; i < arr.length; i++) {
+  arr.push(i);  // Modifying length during iteration
+}
+```
+
+## Writing Optimizable Code
+
+### Prefer Numbers Over Mixed Types
+
+Porffor optimizes numeric code especially well:
+
+<CodeGroup>
+```javascript good.js
+// Good: consistent number usage
+function sum(arr) {
+  let total = 0;
+  for (let i = 0; i < arr.length; i++) {
+    total += arr[i];
+  }
+  return total;
+}
+```
+
+```javascript avoid.js
+// Avoid: mixing types
+function sum(arr) {
+  let total = '0';  // String instead of number
+  for (let i = 0; i < arr.length; i++) {
+    total = Number(total) + arr[i];  // Repeated conversion
+  }
+  return total;
+}
+```
+</CodeGroup>
+
+### Use ByteString When Possible
+
+ByteStrings (ASCII/Latin-1) are twice as memory-efficient as regular strings:
+
+<CodeGroup>
+```javascript good.js
+// Good: ASCII strings optimize to ByteString automatically
+const greeting = 'Hello';
+const name = 'World';
+const message = greeting + ' ' + name;
+```
+
+```javascript slower.js
+// Slower: Unicode characters require full UTF-16 strings
+const greeting = 'Hello 👋';
+const name = 'World 🌍';
+const message = greeting + ' ' + name;
+```
+</CodeGroup>
+
+<Tip>
+  Porffor automatically uses ByteString for ASCII/Latin-1 strings. You don't need to do anything special.
+</Tip>
+
+### Cache Array Length
+
+Manually cache length for frequently-accessed arrays:
+
+<CodeGroup>
+```javascript optimized.js
+// Optimized: cached length
+const data = getData();
+const len = data.length;
+for (let i = 0; i < len; i++) {
+  process(data[i]);
+}
+```
+
+```javascript unoptimized.js
+// Less optimized: repeated length access
+const data = getData();
+for (let i = 0; i < data.length; i++) {
+  process(data[i]);
+}
+```
+</CodeGroup>
+
+Performance difference:
+- **Cached length**: ~2-5% faster
+- **With --fast-length**: Difference is negligible
+
+### Avoid Object-Heavy Code
+
+Objects require more complex code generation:
+
+<CodeGroup>
+```javascript good.js
+// Good: array-based data
+function processPoints(points) {
+  let sumX = 0, sumY = 0;
+  for (let i = 0; i < points.length; i += 2) {
+    sumX += points[i];
+    sumY += points[i + 1];
+  }
+  return [sumX, sumY];
+}
+
+const points = [1, 2, 3, 4, 5, 6];
+processPoints(points);
+```
+
+```javascript slower.js
+// Slower: object-based data
+function processPoints(points) {
+  let sumX = 0, sumY = 0;
+  for (let i = 0; i < points.length; i++) {
+    sumX += points[i].x;
+    sumY += points[i].y;
+  }
+  return { x: sumX, y: sumY };
+}
+
+const points = [{x: 1, y: 2}, {x: 3, y: 4}, {x: 5, y: 6}];
+processPoints(points);
+```
+</CodeGroup>
+
+### Hoist Invariants Out of Loops
+
+Move loop-invariant computations outside:
+
+<CodeGroup>
+```javascript optimized.js
+// Optimized: computation outside loop
+function scale(values, factor) {
+  const multiplier = factor * 2;
+  for (let i = 0; i < values.length; i++) {
+    values[i] *= multiplier;
+  }
+}
+```
+
+```javascript unoptimized.js
+// Unoptimized: repeated computation
+function scale(values, factor) {
+  for (let i = 0; i < values.length; i++) {
+    values[i] *= (factor * 2);
+  }
+}
+```
+</CodeGroup>
+
+<Note>
+  Cyclone optimizer (-O2) performs some of this automatically, but explicit hoisting is still beneficial.
+</Note>
+
+### Use Specific Loop Patterns
+
+Porffor optimizes standard loop patterns best:
+
+<CodeGroup>
+```javascript best.js
+// Best: standard indexed for loop
+const data = [1, 2, 3, 4, 5];
+for (let i = 0; i < data.length; i++) {
+  console.log(data[i]);
+}
+```
+
+```javascript good.js
+// Good: for-of loop
+const data = [1, 2, 3, 4, 5];
+for (const item of data) {
+  console.log(item);
+}
+```
+
+```javascript avoid.js
+// Avoid: forEach with closure
+const data = [1, 2, 3, 4, 5];
+data.forEach(item => {
+  console.log(item);
+});
+```
+</CodeGroup>
+
+### Minimize Dynamic Property Access
+
+Direct access is faster than computed properties:
+
+<CodeGroup>
+```javascript fast.js
+// Fast: direct property access
+function getCoords(obj) {
+  return [obj.x, obj.y, obj.z];
+}
+```
+
+```javascript slower.js
+// Slower: computed property access
+function getCoords(obj) {
+  const keys = ['x', 'y', 'z'];
+  return keys.map(k => obj[k]);
+}
+```
+</CodeGroup>
+
+## TypeScript Optimization
+
+When using TypeScript, add type annotations for better optimization:
+
+```typescript
+// Enable type-based optimization
+// Compile with: porf --parse-types --opt-types input.ts
+
+function compute(data: number[]): number {
+  let sum: number = 0;
+  let count: number = data.length;
+  
+  for (let i: number = 0; i < count; i++) {
+    sum += data[i];
+  }
+  
+  return sum / count;
+}
+```
+
+**Type annotations enable:**
+- Skip runtime type checks
+- Generate specialized code paths
+- Optimize numeric operations
+- Improve array access patterns
+
+See the [TypeScript guide](/guides/using-typescript) for details.
+
+## Native Compilation Optimizations
+
+When compiling to native binaries, combine multiple optimization levels:
+
+### Maximum Performance
+
+```bash
+porf native -O2 --cO=Ofast --compiler=clang input.js output
+```
+
+This applies:
+1. **Porffor optimizations** (-O2): Wasm-level optimization
+2. **2c compilation**: Efficient Wasm-to-C translation
+3. **C compiler optimizations** (--cO=Ofast): Maximum native optimization
+
+### Balanced Build
+
+```bash
+porf native -O1 --cO=O3 input.js output
+```
+
+Good balance of:
+- Reasonable compilation time
+- Strong performance improvements
+- Better stability than Ofast
+
+### Development Build
+
+```bash
+porf native -O0 --cO=O1 -d input.js output
+```
+
+Optimized for:
+- Fast compilation
+- Debuggable output
+- Quick iteration
+
+## Benchmarking Your Code
+
+Always measure performance:
+
+```javascript benchmark.js
+const iterations = 100000;
+
+function testImplementation() {
+  // Your code here
+}
+
+const start = performance.now();
+for (let i = 0; i < iterations; i++) {
+  testImplementation();
+}
+const elapsed = performance.now() - start;
+
+console.log(`Avg time: ${(elapsed / iterations).toFixed(3)}ms`);
+```
+
+Compile with different optimization levels and compare:
+
+```bash
+porf -O0 benchmark.js && porf benchmark.js
+porf -O1 benchmark.js && porf benchmark.js  
+porf -O2 benchmark.js && porf benchmark.js
+```
+
+## Avoiding Performance Pitfalls
+
+### Don't Optimize Prematurely
+
+1. **Write correct code first**
+2. **Profile to find bottlenecks**
+3. **Optimize hot paths only**
+4. **Measure impact**
+
+### Avoid These Patterns
+
+<AccordionGroup>
+  <Accordion title="Avoid eval and Function constructor">
+    Not supported in AOT compilation:
+    ```javascript
+    // DON'T: eval is not supported
+    eval('console.log("hello")');
+    
+    // DON'T: Function constructor not supported
+    const fn = new Function('x', 'return x * 2');
+    ```
+    
+    Use static functions instead.
+  </Accordion>
+
+  <Accordion title="Avoid complex scope chains">
+    Porffor has limited scope support:
+    ```javascript
+    // AVOID: variables between scopes
+    function outer() {
+      let x = 1;
+      function inner() {
+        return x + 1;  // May not work as expected
+      }
+      return inner();
+    }
+    ```
+    
+    Use parameters and return values instead:
+    ```javascript
+    // BETTER: explicit parameters
+    function outer() {
+      let x = 1;
+      return inner(x);
+    }
+    function inner(x) {
+      return x + 1;
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Avoid heavy async patterns">
+    Promise and await have known bugs:
+    ```javascript
+    // USE WITH CAUTION
+    async function fetchData() {
+      const result = await fetch(url);
+      return result;
+    }
+    ```
+    
+    Prefer synchronous code for production use.
+  </Accordion>
+</AccordionGroup>
+
+## Optimization Checklist
+
+<Steps>
+<Step title="Choose optimization level">
+  Start with `-O1`, move to `-O2` for production:
+  ```bash
+  porf -O2 input.js
+  ```
+</Step>
+
+<Step title="Enable type optimizations for TypeScript">
+  Use type annotations as compiler hints:
+  ```bash
+  porf --parse-types --opt-types input.ts
+  ```
+</Step>
+
+<Step title="Use fast-length for array-heavy code">
+  If you're not modifying lengths dynamically:
+  ```bash
+  porf --fast-length input.js
+  ```
+</Step>
+
+<Step title="Profile and measure">
+  Use `performance.now()` to identify bottlenecks:
+  ```javascript
+  const start = performance.now();
+  // ... code ...
+  console.log(performance.now() - start);
+  ```
+</Step>
+
+<Step title="For native builds, optimize C compilation">
+  Use aggressive C compiler flags:
+  ```bash
+  porf native -O2 --cO=Ofast input.js output
+  ```
+</Step>
+
+<Step title="Consider PGO for production">
+  Enable profile-guided optimization:
+  ```bash
+  porf native --pgo input.js output
+  ```
+</Step>
+</Steps>
+
+## Performance Expectations
+
+### Compared to Interpreted JavaScript
+
+Porffor (with optimization) is typically:
+- **5-50x faster** than basic interpreters
+- **2-10x faster** than Node.js without JIT
+
+### Compared to JIT JavaScript
+
+Porffor native binaries:
+- **Similar or slower** than V8/SpiderMonkey with JIT (after warmup)
+- **Much faster** for short-running scripts (no warmup time)
+- **More consistent** performance (no deoptimization)
+
+### Compared to Hand-Written Wasm
+
+Porffor-generated Wasm:
+- **80-95%** of hand-optimized Wasm performance
+- Much faster to develop than hand-written Wasm
+- Good for most use cases
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Debugging" icon="bug" href="/guides/debugging">
+    Debug optimized code when things go wrong
+  </Card>
+  
+  <Card title="TypeScript Support" icon="code" href="/guides/using-typescript">
+    Use types for better optimization
+  </Card>
+  
+  <Card title="Native Compilation" icon="microchip" href="/guides/compiling-to-native">
+    Build optimized native binaries
+  </Card>
+  
+  <Card title="Profiling" icon="chart-line" href="/cli/profile">
+    Profile your code for bottlenecks
+  </Card>
+</CardGroup>
