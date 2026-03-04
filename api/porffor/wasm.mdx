@@ -238,19 +238,19 @@ function vectorAdd(aPtr, bPtr, len) {
 Porffor uses specific memory layouts for different types:
 
 ### String/ByteString
-```
+```text
 [0-3]  u32 length
 [4+]   char data (u8 for bytestring, u16 for string)
 ```
 
 ### Array
-```
+```text
 [0-3]  u32 length
 [4+]   elements (9 bytes each: 8 bytes value + 1 byte type)
 ```
 
 ### Object
-```
+```text
 [0-1]  u16 property count
 [2-7]  reserved
 [8+]   properties (18 bytes each)

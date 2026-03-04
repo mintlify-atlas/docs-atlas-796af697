@@ -72,7 +72,7 @@ node test262 built-ins/String/prototype/trim/this-value.js
 
 The main output you'll see:
 
-```
+```text
 🧪 50005 | 🤠 7007 (-89) | ❌ 1914 (-32) | 💀 13904 (-61) | 📝 23477 (-120) | ⏰ 2 | 🏗 2073 (+302) | 💥 1628
 ```
 
@@ -93,7 +93,7 @@ Let's decode this:
 
 Numbers in parentheses show change from the last commit with test262 data:
 
-```
+```text
 🤠 7007 (-89)  // 89 fewer passes than last commit - ⚠️ Bad!
 ❌ 1914 (-32)  // 32 fewer failures - ✅ Good!
 💀 13904 (-61) // 61 fewer runtime errors - ✅ Good!
@@ -155,7 +155,7 @@ node test262 --plain-results
 ```
 
 Output:
-```
+```text
 total: 50005 | pass: 7007 (-89) | fail: 1914 (-32) | ...
 ```
 
@@ -268,7 +268,7 @@ When you run the full test suite:
 
 ### ✅ Good PR
 
-```
+```text
 🤠 7096 (+89)   // 89 more passes
 ❌ 1882 (-32)   // 32 fewer failures  
 💀 13843 (-61)  // 61 fewer runtime errors
@@ -276,7 +276,7 @@ When you run the full test suite:
 
 ### ⚠️ Needs Review
 
-```
+```text
 🤠 7050 (+43)   // 43 more passes
 ❌ 1920 (+6)    // But 6 NEW failures - what broke?
 💀 13880 (-37)  // Runtime errors improved
@@ -286,7 +286,7 @@ Check the new failures list - you may have fixed some tests but broken others.
 
 ### ❌ Problem
 
-```
+```text
 🤠 7007 (0)     // No change in passes
 ❌ 1914 (0)     // No change in failures
 🏗️ 2100 (+27)  // New compile errors - something's wrong

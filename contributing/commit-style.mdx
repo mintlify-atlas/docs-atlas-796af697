@@ -9,7 +9,7 @@ Porffor follows a specific commit message style to keep the git history clean an
 
 Commit messages should follow this pattern:
 
-```
+```text
 ${file}: ${description}
 ```
 
@@ -21,39 +21,39 @@ Where:
 
 ### Built-in Implementations
 
-```
+```text
 builtins/date: impl toJSON
 ```
 
-```
+```text
 builtins/array: wip toReversed
 ```
 
-```
+```text
 builtins/tostring_number: impl radix
 ```
 
 ### Bug Fixes
 
-```
+```text
 builtins/date: fix ToIntegerOrInfinity returning -0
 ```
 
-```
+```text
 builtins/string: fix trim not handling edge cases
 ```
 
 ### Compiler Changes
 
-```
+```text
 codegen: fix inline wasm for unreachable
 ```
 
-```
+```text
 opt: improve constant folding
 ```
 
-```
+```text
 assemble: add support for custom sections
 ```
 
@@ -84,13 +84,13 @@ Use these prefixes based on what you're changing:
 
 If possible, use short descriptions:
 
-```
+```text
 builtins/array: add map
 ```
 
 But don't be afraid to use longer titles when needed:
 
-```
+```text
 builtins/string: fix toUpperCase not handling non-ASCII correctly
 ```
 
@@ -98,7 +98,7 @@ builtins/string: fix toUpperCase not handling non-ASCII correctly
 
 Write as if giving a command:
 
-```
+```text
 builtins/array: add filter method        ✅
 builtins/array: added filter method      ❌
 builtins/array: adds filter method       ❌
@@ -118,13 +118,13 @@ builtins/array: adds filter method       ❌
 
 If your change affects multiple files, use the primary file or area:
 
-```
+```text
 builtins/string: impl trim, trimStart, trimEnd
 ```
 
 Or use the general area:
 
-```
+```text
 builtins: fix multiple type coercion issues
 ```
 
@@ -132,7 +132,7 @@ builtins: fix multiple type coercion issues
 
 You can add detailed descriptions in the commit body:
 
-```
+```text
 builtins/array: impl toSorted
 
 Implements Array.prototype.toSorted() which returns a new sorted array
@@ -152,7 +152,7 @@ Test262: +47 passes in built-ins/Array/prototype/toSorted/
 
 For incomplete features, use `wip`:
 
-```
+```text
 builtins/array: wip toReversed
 ```
 
@@ -217,31 +217,31 @@ If you accidentally commit secrets, ask for help immediately.
 
 Here are actual commits from Porffor's history:
 
-```
+```text
 builtins/date: impl toJSON
 ```
 
 Implemented a new method.
 
-```
+```text
 builtins/date: fix ToIntegerOrInfinity returning -0
 ```
 
 Fixed a specific bug.
 
-```
+```text
 codegen: fix inline wasm for unreachable
 ```
 
 Fixed a compiler issue.
 
-```
+```text
 builtins/array: wip toReversed
 ```
 
 Work in progress on a feature.
 
-```
+```text
 builtins/tostring_number: impl radix
 ```
 
@@ -285,7 +285,7 @@ git log -1
 **Format:** `${file}: ${description}`
 
 **Examples:**
-```
+```text
 builtins/array: add map
 builtins/string: fix trim edge cases  
 codegen: optimize function calls

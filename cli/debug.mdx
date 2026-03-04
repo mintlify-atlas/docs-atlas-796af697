@@ -37,7 +37,7 @@ porf debug --parse-types script.ts
 
 When launched, the debugger shows:
 
-```
+```text
 porffor debugger: script.js@15    main->processData
 
    12 | function processData(arr) {
@@ -61,7 +61,7 @@ porffor debugger: script.js@15    main->processData
 
 Shows current execution state:
 
-```
+```text
 porffor debugger: script.js@15    main->processData
                   ^^^^^^^^ ^^      ^^^^^^^^^^^^^^^^
                   file    line     call stack
@@ -86,7 +86,7 @@ Shows program output:
 
 Displays current function call chain:
 
-```
+```text
 main->processData->helper
 ```
 
@@ -205,7 +205,7 @@ Both appear in the console section of the debugger UI.
 
 The call stack shows function call hierarchy:
 
-```
+```text
 main
 main->processArray
 main->processArray->sortItems

@@ -15,7 +15,7 @@ Porffor can compile JavaScript directly to native binaries that run without any 
 
 The native compilation pipeline:
 
-```
+```text
 JavaScript → Wasm → C → Native Binary
    (Porffor)   (2c)  (clang/gcc/zig)
 ```
@@ -335,7 +335,7 @@ This is useful for:
 
 The generated C includes:
 
-```c
+```text
 typedef uint8_t u8;
 typedef uint16_t u16;
 typedef int32_t i32;
