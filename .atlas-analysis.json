@@ -1,0 +1,155 @@
+{
+  "projectType": "cli-tool",
+  "projectName": "Porffor",
+  "projectDescription": "An ahead-of-time JavaScript compiler that compiles JS/TS to WebAssembly, C, or native binaries",
+  "theme": "aspen",
+  "primaryColor": "#8B5CF6",
+  "lightColor": "#A78BFA",
+  "darkColor": "#6D28D9",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/aot-compilation",
+              "concepts/type-system",
+              "concepts/memory-model",
+              "concepts/wasm-proposals"
+            ]
+          },
+          {
+            "group": "CLI Commands",
+            "pages": [
+              "cli/overview",
+              "cli/run",
+              "cli/wasm",
+              "cli/native",
+              "cli/c",
+              "cli/lambda",
+              "cli/profile",
+              "cli/debug",
+              "cli/repl"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "config/compiler-options",
+              "config/optimization-levels",
+              "config/parsers",
+              "config/typescript-support"
+            ]
+          },
+          {
+            "group": "Advanced Features",
+            "pages": [
+              "advanced/inline-wasm",
+              "advanced/porffor-api",
+              "advanced/custom-builtins",
+              "advanced/2c-compiler"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/compiling-to-wasm",
+              "guides/compiling-to-native",
+              "guides/using-typescript",
+              "guides/optimization-strategies",
+              "guides/debugging"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Compiler API",
+            "pages": [
+              "api/compile",
+              "api/module-api"
+            ]
+          },
+          {
+            "group": "Porffor Global API",
+            "pages": [
+              "api/porffor/wasm",
+              "api/porffor/memory",
+              "api/porffor/types",
+              "api/porffor/object",
+              "api/porffor/array",
+              "api/porffor/bytestring"
+            ]
+          },
+          {
+            "group": "Built-in APIs",
+            "pages": [
+              "api/builtins/overview",
+              "api/builtins/globals",
+              "api/builtins/string",
+              "api/builtins/array",
+              "api/builtins/object",
+              "api/builtins/date",
+              "api/builtins/regexp",
+              "api/builtins/math"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Contributing",
+        "groups": [
+          {
+            "group": "Development",
+            "pages": [
+              "contributing/getting-started",
+              "contributing/project-structure",
+              "contributing/writing-builtins",
+              "contributing/testing",
+              "contributing/commit-style"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Ahead-of-time (AOT) JavaScript/TypeScript compilation to WebAssembly",
+    "Compile to native binaries via 2c (Wasm-to-C compiler)",
+    "Zero constant runtime or preluded code",
+    "Built-in TypeScript support with type-guided optimizations",
+    "Interactive REPL mode",
+    "Inline WebAssembly support via Porffor.wasm API",
+    "Profile-guided optimization (PGO)",
+    "AWS Lambda deployment support",
+    "Custom built-in APIs for low-level control"
+  ],
+  "publicApiSurface": [
+    "porf <file> - Compile and execute JavaScript files",
+    "porf wasm <file> <output> - Compile to WebAssembly binary",
+    "porf native <file> <output> - Compile to native binary",
+    "porf c <file> <output> - Compile to C source",
+    "porf lambda <file> <output> - Package for AWS Lambda",
+    "porf profile <file> - Profile performance by function",
+    "porf debug <file> - Debug source code",
+    "porf (no args) - Start interactive REPL",
+    "compile(source, module, print) - Programmatic compiler API",
+    "Porffor.wasm - Inline WebAssembly template tag",
+    "Porffor.malloc() - Manual memory allocation",
+    "Porffor.object.* - Low-level object operations",
+    "Porffor.array.* - Fast array operations",
+    "Porffor.bytestring.* - ByteString utilities"
+  ]
+}
